@@ -1,9 +1,9 @@
-﻿from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, HTTPException, status
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 
-from app.core.db import get_db, AsyncSessionLocal
-from app.models.entities import Centre, QueueState, Token, Booking, User
+from app.core.db import get_db
+from app.models.entities import Centre, QueueState, Booking, User
 from app.schemas.schemas import QueueStatusResponse, QueueItem
 from app.services.queue_engine import QueueEngine
 from app.ws.queue_ws import manager
@@ -19,35 +19,41 @@ async def get_live_queue(centre_id: str, db: AsyncSession = Depends(get_db)):
 
     # Fetch waiting queue
     stmt = (
-        select(QueueState, Token, Booking, User)
-        .join(Token, Token.id == QueueState.token_id)
-        .join(Booking, Booking.id == Token.booking_id)
+        select(QueueState, Booking, User)
+        .join(Booking, Booking.id == QueueState.booking_id)
         .join(User, User.id == Booking.farmer_id)
-        .where(and_(Token.centre_id == centre_id, QueueState.status == 'waiting'))
+        .where(and_(QueueState.centre_id == centre_id, QueueState.status == 'waiting'))
         .order_by(QueueState.position.asc())
     )
     rows = (await db.execute(stmt)).all()
 
     queue_items = [
         QueueItem(
-            token_number=token.token_number,
+            booking_id=booking.id,
             unique_booking_code=booking.unique_booking_code,
             farmer_name=user.full_name,
             position=q.position,
             eta_minutes=q.eta_minutes,
             status=q.status,
         )
-        for q, token, booking, user in rows
+        for q, booking, user in rows
     ]
 
     total_waiting = len(queue_items)
-    est_wait = QueueEngine.calculate_eta(position=total_waiting, active_counters=centre.weighing_points)
+    est_wait = QueueEngine.calculate_kisanqueue_eta(
+        n=total_waiting,
+        c=centre.workers_count,
+        f=centre.capacity_factor,
+        status=centre.status,
+    )
 
     return QueueStatusResponse(
         centre_id=centre.id,
         centre_name=centre.name,
         total_waiting=total_waiting,
-        active_counters=centre.weighing_points,
+        workers_count=centre.workers_count,
+        capacity_factor=centre.capacity_factor,
+        status=centre.status,
         estimated_wait_time_minutes=est_wait,
         queue=queue_items,
     )

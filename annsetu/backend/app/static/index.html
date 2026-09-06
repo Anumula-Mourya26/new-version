@@ -1,0 +1,1879 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AnnSetu — KisanQueue Edition | MSP Procurement & Queue Engine</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+          colors: {
+            annsetu: {
+              green: '#1B5E20',
+              lightgreen: '#2E7D32',
+              blue: '#1F4E79',
+              amber: '#D97706',
+              wheat: '#F5EBE1',
+              dark: '#111827',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .badge { display: inline-flex; align-items: center; padding: 0.125rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; }
+    .status-booked { background-color: #DBEAFE; color: #1E40AF; }
+    .status-arrived { background-color: #FEF3C7; color: #92400E; }
+    .status-in_queue { background-color: #E0E7FF; color: #3730A3; }
+    .status-completed { background-color: #D1FAE5; color: #065F46; }
+    .status-cancelled { background-color: #FEE2E2; color: #991B1B; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 font-sans min-h-screen flex flex-col">
+
+  <!-- Top Navigation -->
+  <header class="bg-annsetu-green text-white shadow-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3 cursor-pointer" onclick="goToHome()">
+        <span class="text-3xl">🌾</span>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight flex items-center gap-2">
+            AnnSetu
+            <span class="text-[10px] font-extrabold uppercase bg-amber-400 text-gray-900 px-2 py-0.5 rounded shadow-sm">KisanQueue</span>
+          </h1>
+          <p class="text-xs text-green-100 font-medium">MSP Procurement · 120-min Slots · Dynamic ETA Engine</p>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs (Dynamic per Role) -->
+      <div id="nav-tabs" class="hidden md:flex bg-black/20 p-1 rounded-lg text-sm font-medium space-x-1">
+        <button onclick="switchView('farmer')" id="tab-farmer" class="px-3 py-1.5 rounded-md text-white hover:text-green-200 transition">🚜 Farmer Portal</button>
+        <button onclick="switchView('vendor')" id="tab-vendor" class="px-3 py-1.5 rounded-md text-white hover:text-green-200 transition">⚖️ Vendor Mandi Ops</button>
+        <button onclick="switchView('admin')" id="tab-admin" class="px-3 py-1.5 rounded-md text-white hover:text-green-200 transition hidden">🏛️ District Admin</button>
+      </div>
+
+      <!-- User Info & Auth Controls -->
+      <div class="flex items-center space-x-3">
+        <div id="user-badge" class="hidden flex items-center space-x-2 bg-black/20 px-3 py-1.5 rounded-full text-xs">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="user-name-display" class="font-bold">Balwinder Singh</span>
+          <span id="user-role-display" class="bg-white/20 px-1.5 py-0.5 rounded uppercase text-[10px]">Farmer</span>
+          <button onclick="handleLogout()" title="Logout" class="text-red-300 hover:text-red-100 ml-2 font-bold underline">Logout</button>
+        </div>
+
+        <div id="auth-btn-container">
+          <button onclick="openAuthModal('login')" class="bg-white text-annsetu-green font-bold text-xs px-4 py-2 rounded-lg shadow hover:bg-green-50 transition">
+            Sign In / Register
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Notification Banner -->
+  <div id="global-alert" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+    <div id="global-alert-box" class="p-4 rounded-xl flex items-center justify-between text-sm shadow-sm">
+      <div class="flex items-center space-x-2">
+        <span id="global-alert-icon" class="text-lg">ℹ️</span>
+        <span id="global-alert-msg" class="font-medium"></span>
+      </div>
+      <button onclick="closeGlobalAlert()" class="text-gray-500 hover:text-gray-800 font-bold ml-4">✕</button>
+    </div>
+  </div>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
+    <!-- ================================================================= -->
+    <!-- VIEW: FARMER PORTAL                                               -->
+    <!-- ================================================================= -->
+    <div id="view-farmer" class="space-y-6">
+      
+      <!-- Hero / Quick Status -->
+      <div class="bg-gradient-to-r from-annsetu-green via-emerald-800 to-annsetu-blue rounded-2xl p-6 text-white shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <div class="inline-flex items-center gap-2 bg-white/20 text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full">
+            <span>🌾 MSP Kharif Season 2026</span>
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-300"></span>
+            <span>Paddy MSP: ₹2,320 / Qtl</span>
+          </div>
+          <h2 class="text-2xl font-black mt-2" id="farmer-hero-title">Farmer Procurement Portal</h2>
+          <p class="text-green-100 text-sm mt-1">Book 120-minute slot, view live queue time, confirm mandi arrival & track DBT payout.</p>
+        </div>
+
+        <div class="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20 text-left md:text-right min-w-[200px]">
+          <div class="text-[11px] text-green-200 uppercase font-semibold">Active Booking Status</div>
+          <div id="farmer-quick-status" class="text-lg font-bold text-white mt-0.5">No Active Booking</div>
+          <div id="farmer-quick-eta" class="text-xs text-amber-300 mt-0.5 font-medium">Select a mandi to reserve</div>
+        </div>
+      </div>
+
+      <!-- Active Booking Alert & Live Queue Card (If active) -->
+      <div id="farmer-active-booking-card" class="hidden bg-white rounded-2xl shadow-md border-2 border-emerald-500 p-6">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center pb-4 border-b border-gray-100 gap-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span id="active-booking-status-badge" class="badge status-booked uppercase tracking-wider">Booked</span>
+              <span class="text-xs font-bold text-gray-500">Mandi Gate Pass</span>
+            </div>
+            <h3 class="text-2xl font-black text-gray-900 mt-1" id="active-booking-code">AS-000000</h3>
+            <p class="text-sm text-gray-600 mt-0.5" id="active-booking-centre-slot">Khanna Mandi · 08:00 - 10:00</p>
+          </div>
+
+          <!-- KisanQueue Waiting Formula Box -->
+          <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center min-w-[240px]">
+            <div class="text-[11px] uppercase font-bold text-amber-800 tracking-wider">KisanQueue Live ETA</div>
+            <div class="text-3xl font-black text-amber-700 mt-1" id="active-booking-eta">-- min</div>
+            <div class="text-[11px] text-amber-800 mt-1 font-medium" id="active-booking-queue-pos">Position: Not in queue</div>
+            <div class="text-[10px] text-gray-500 mt-1" id="active-booking-formula-note">Formula: ⌈(N × 25) / (C × F)⌉</div>
+          </div>
+        </div>
+
+        <!-- Action Row -->
+        <div class="mt-6 flex flex-wrap items-center justify-between gap-4">
+          <div class="flex items-center space-x-3">
+            <button id="btn-arrival-confirm" onclick="handleArrivalConfirm()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl shadow text-sm transition flex items-center gap-2">
+              <span>📍</span> I Have Reached Mandi Venue
+            </button>
+            <button onclick="handleCancelActiveBooking()" class="text-red-600 hover:text-red-800 font-semibold px-4 py-2.5 rounded-xl border border-red-200 hover:bg-red-50 text-sm transition">
+              Cancel Booking
+            </button>
+          </div>
+          <div class="text-xs text-gray-500" id="arrival-status-text">
+            Arrived status enters your tractor into the venue virtual queue.
+          </div>
+        </div>
+
+        <!-- Payment Confirmation Badge & DBT Proof Card (Visible when completed) -->
+        <div id="payment-confirmation-section" class="hidden mt-6 pt-6 border-t border-gray-200">
+          <div class="bg-emerald-50 border border-emerald-300 rounded-xl p-5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xl font-bold">✓</div>
+                <div>
+                  <h4 class="text-base font-bold text-emerald-900">Money Credited to Farmer Account</h4>
+                  <p class="text-xs text-emerald-700">Procurement weighing completed & DBT transaction settled successfully.</p>
+                </div>
+              </div>
+              <span class="bg-emerald-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase">DBT Settled</span>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 bg-white/80 p-3 rounded-lg border border-emerald-200 text-xs">
+              <div>
+                <span class="text-gray-500 block">Actual Weight</span>
+                <span id="pay-actual-weight" class="font-bold text-gray-900 text-sm">-- Qtl</span>
+              </div>
+              <div>
+                <span class="text-gray-500 block">Amount Credited</span>
+                <span id="pay-amount-paid" class="font-bold text-emerald-700 text-sm">₹--</span>
+              </div>
+              <div>
+                <span class="text-gray-500 block">Payment Method</span>
+                <span id="pay-method" class="font-bold text-gray-900 uppercase">DBT Direct</span>
+              </div>
+              <div>
+                <span class="text-gray-500 block">Proof / UTR Ref</span>
+                <span id="pay-proof-data" class="font-mono font-bold text-blue-700">--</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Booking Form & Mandi Directory Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left 2 Cols: Slot Booking Form -->
+        <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-5">
+          <div class="flex justify-between items-center pb-3 border-b border-gray-100">
+            <div>
+              <h3 class="text-lg font-bold text-gray-900">📅 Book Procurement Slot (120 Minutes)</h3>
+              <p class="text-xs text-gray-500">Mandi operating hours: 08:00 AM to 06:00 PM · Max 30 farmers per slot</p>
+            </div>
+            <span class="text-xs bg-green-100 text-green-800 font-bold px-2.5 py-1 rounded-full">Cap: 30 / Slot</span>
+          </div>
+
+          <!-- State, City, Mandi Cascade -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-gray-700 uppercase mb-1">1. State</label>
+              <select id="select-state" onchange="onStateChange()" class="w-full border-gray-300 rounded-xl p-2.5 text-sm border focus:ring-2 focus:ring-annsetu-green focus:outline-none">
+                <option value="">Select State</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-700 uppercase mb-1">2. City / District</label>
+              <select id="select-city" onchange="onCityChange()" class="w-full border-gray-300 rounded-xl p-2.5 text-sm border focus:ring-2 focus:ring-annsetu-green focus:outline-none" disabled>
+                <option value="">Select City</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-700 uppercase mb-1">3. Mandi Centre</label>
+              <select id="select-centre" onchange="onCentreChange()" class="w-full border-gray-300 rounded-xl p-2.5 text-sm border focus:ring-2 focus:ring-annsetu-green focus:outline-none" disabled>
+                <option value="">Select Mandi</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Centre Live Info Pill -->
+          <div id="selected-centre-info" class="hidden p-3.5 bg-gray-50 rounded-xl border border-gray-200 text-xs flex flex-wrap justify-between items-center gap-2">
+            <div>
+              <span class="font-bold text-gray-900" id="info-centre-name">Khanna Mandi</span>
+              <span class="text-gray-500 ml-2" id="info-centre-workers">Workers (C): 3</span>
+              <span class="text-gray-500 ml-2" id="info-centre-factor">Factor (F): 1.0 (NORMAL)</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="badge bg-green-100 text-green-800" id="info-centre-status">NORMAL</span>
+              <span class="font-semibold text-gray-700" id="info-centre-wait">Live Wait: ~25 mins</span>
+            </div>
+          </div>
+
+          <!-- 120-min Slot Window & Weight -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-gray-700 uppercase mb-1">120-Minute Time Slot (08:00 - 18:00)</label>
+              <select id="select-slot" class="w-full border-gray-300 rounded-xl p-2.5 text-sm border focus:ring-2 focus:ring-annsetu-green focus:outline-none" disabled>
+                <option value="">Select Mandi First</option>
+              </select>
+              <p class="text-[11px] text-gray-500 mt-1" id="slot-capacity-hint">Standard windows: 08:00-10:00, 10:00-12:00, 12:00-14:00, 14:00-16:00, 16:00-18:00</p>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Estimated Produce Weight (Quintals)</label>
+              <input id="input-est-weight" type="number" step="0.5" min="1" max="500" value="45.0" class="w-full border-gray-300 rounded-xl p-2.5 text-sm border focus:ring-2 focus:ring-annsetu-green focus:outline-none" />
+              <p class="text-[11px] text-gray-500 mt-1">Estimated payout: <strong class="text-annsetu-green" id="est-payout-calc">₹1,04,400</strong> (@ ₹2,320/qtl)</p>
+            </div>
+          </div>
+
+          <button onclick="handleBookSlot()" id="btn-submit-booking" class="w-full bg-annsetu-green hover:bg-annsetu-lightgreen text-white font-bold py-3 rounded-xl text-sm transition shadow-md">
+            Confirm Slot Reservation & Generate Gate Token
+          </button>
+        </div>
+
+        <!-- Right Col: Mandi Congestion & KisanQueue ETA Reference -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+          <h3 class="text-base font-bold text-gray-900 flex items-center justify-between">
+            <span>⏱️ KisanQueue ETA Model</span>
+            <span class="text-[10px] font-mono bg-gray-100 text-gray-600 px-2 py-0.5 rounded">Formula</span>
+          </h3>
+
+          <div class="bg-gray-50 p-3.5 rounded-xl border border-gray-200 text-xs space-y-2">
+            <div class="font-mono text-center font-bold text-annsetu-blue bg-white p-2 rounded border">
+              ETA = ⌈ (N × 25) / (C × F) ⌉
+            </div>
+            <ul class="text-[11px] text-gray-600 space-y-1">
+              <li>• <strong>N:</strong> Farmers waiting ahead at mandi</li>
+              <li>• <strong>25:</strong> Base weighbridge handling time (mins)</li>
+              <li>• <strong>C:</strong> Active workers count set by vendor</li>
+              <li>• <strong>F:</strong> Mandi capacity factor (1.0, 0.8, 0.6, 0.0)</li>
+            </ul>
+          </div>
+
+          <h4 class="text-xs font-bold uppercase text-gray-500 tracking-wider">Live Mandi Congestion</h4>
+          <div id="mandi-list-sidebar" class="space-y-2 max-h-64 overflow-y-auto pr-1">
+            <div class="text-xs text-gray-400">Loading mandis...</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Farmer Previous Booking History -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="text-lg font-bold text-gray-900">📜 My Booking & Payout History</h3>
+            <p class="text-xs text-gray-500">Track all past gate passes, weighbridge receipts and bank DBT payments.</p>
+          </div>
+          <button onclick="loadFarmerHistory()" class="text-xs font-semibold px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50">↻ Refresh History</button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-gray-100 text-gray-600 uppercase font-bold">
+              <tr>
+                <th class="py-2.5 px-3">Booking Code</th>
+                <th class="py-2.5 px-3">Mandi Centre</th>
+                <th class="py-2.5 px-3">Date & Slot (120m)</th>
+                <th class="py-2.5 px-3">Est. Weight</th>
+                <th class="py-2.5 px-3">Status</th>
+                <th class="py-2.5 px-3">Payment / Proof</th>
+                <th class="py-2.5 px-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="farmer-history-table-body" class="divide-y divide-gray-100">
+              <tr>
+                <td colspan="7" class="py-4 text-center text-gray-400">Sign in to view your booking history</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+    <!-- ================================================================= -->
+    <!-- VIEW: VENDOR MANDI OPERATIONS                                     -->
+    <!-- ================================================================= -->
+    <div id="view-vendor" class="hidden space-y-6">
+
+      <!-- Vendor Mandi Header & Centre Selector -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="badge bg-blue-100 text-blue-800 uppercase tracking-wide">Mandi Operations</span>
+            <span id="vendor-mandi-tag" class="text-xs font-bold text-gray-500">Centre Console</span>
+          </div>
+          <h2 class="text-2xl font-black text-gray-900 mt-1" id="vendor-centre-title">Khanna Grain Mandi</h2>
+          <p class="text-xs text-gray-500">Manage daily workers (C), capacity factor (F), roster (max 30/slot), gate check-in & DBT payments.</p>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <div>
+            <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1">Switch Mandi</label>
+            <select id="vendor-mandi-select" onchange="onVendorMandiChange()" class="border border-gray-300 rounded-xl p-2 text-xs font-semibold focus:outline-none">
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+          <button onclick="refreshVendorData()" class="text-xs font-semibold px-3 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 mt-4">↻ Refresh</button>
+        </div>
+      </div>
+
+      <!-- TOP SECTION: Daily Settings & Live KisanQueue Controls -->
+      <div class="bg-gradient-to-r from-gray-900 to-annsetu-dark text-white rounded-2xl p-6 shadow-md">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h3 class="text-base font-bold text-amber-400">⚙️ Start-of-Day Settings & Dynamic Capacity Controls</h3>
+            <p class="text-xs text-gray-300 mt-0.5">Manager sets worker count (C) and status factor (F). Updates synchronize in real time to farmer ETA calculations!</p>
+          </div>
+          <span class="text-xs bg-amber-400/20 text-amber-300 px-2.5 py-1 rounded font-mono">Real-Time Sync</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+          <!-- Worker Count C -->
+          <div class="lg:col-span-1">
+            <label class="block text-xs font-bold uppercase text-gray-300 mb-1">Workers Count (C)</label>
+            <input id="vendor-workers-input" type="number" min="1" max="20" value="3" class="w-full bg-gray-800 border border-gray-700 rounded-xl p-2.5 text-white font-bold text-center text-sm focus:ring-2 focus:ring-amber-400 focus:outline-none" />
+            <span class="text-[10px] text-gray-400">Active weighbridge staff</span>
+          </div>
+
+          <!-- Capacity Factor Radio Buttons -->
+          <div class="lg:col-span-3">
+            <label class="block text-xs font-bold uppercase text-gray-300 mb-1">Mandi Capacity Factor (F) Radio Selector</label>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <label class="flex items-center space-x-2 bg-gray-800 p-2 rounded-xl border border-gray-700 cursor-pointer hover:border-emerald-500">
+                <input type="radio" name="vendor-factor-radio" value="1.0:NORMAL" checked class="text-emerald-500 focus:ring-0" />
+                <div>
+                  <div class="font-bold text-emerald-400">Normal</div>
+                  <div class="text-[10px] text-gray-400">F = 1.0</div>
+                </div>
+              </label>
+
+              <label class="flex items-center space-x-2 bg-gray-800 p-2 rounded-xl border border-gray-700 cursor-pointer hover:border-yellow-500">
+                <input type="radio" name="vendor-factor-radio" value="0.8:BUSY" class="text-yellow-500 focus:ring-0" />
+                <div>
+                  <div class="font-bold text-yellow-400">Busy</div>
+                  <div class="text-[10px] text-gray-400">F = 0.8</div>
+                </div>
+              </label>
+
+              <label class="flex items-center space-x-2 bg-gray-800 p-2 rounded-xl border border-gray-700 cursor-pointer hover:border-orange-500">
+                <input type="radio" name="vendor-factor-radio" value="0.6:LIFTING_DELAYED" class="text-orange-500 focus:ring-0" />
+                <div>
+                  <div class="font-bold text-orange-400">Lifting Delayed</div>
+                  <div class="text-[10px] text-gray-400">F = 0.6</div>
+                </div>
+              </label>
+
+              <label class="flex items-center space-x-2 bg-gray-800 p-2 rounded-xl border border-gray-700 cursor-pointer hover:border-red-500">
+                <input type="radio" name="vendor-factor-radio" value="0.0:PAUSED" class="text-red-500 focus:ring-0" />
+                <div>
+                  <div class="font-bold text-red-400">Paused</div>
+                  <div class="text-[10px] text-gray-400">F = 0.0</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Save Button -->
+          <div class="lg:col-span-1">
+            <button onclick="handleSaveVendorSettings()" class="w-full bg-amber-500 hover:bg-amber-600 text-gray-900 font-black py-2.5 rounded-xl text-xs transition shadow">
+              Save & Broadcast Status
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MIDDLE SECTION: Gate Check-in & Weighing / Payment Submission -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- 1. Scan QR / Enter Code Check-in -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-bold text-gray-900 flex items-center gap-2">
+              <span>🎟️</span> Gate Check-In & Queue Admission
+            </h3>
+            <span class="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">Gate #1</span>
+          </div>
+          <p class="text-xs text-gray-600">Enter farmer gate pass code (or scan QR code) to insert tractor into live virtual queue:</p>
+
+          <div class="flex space-x-2">
+            <input id="vendor-checkin-code" type="text" placeholder="e.g. AS-1047" class="flex-1 uppercase font-mono font-bold border border-gray-300 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-annsetu-green focus:outline-none" />
+            <button onclick="handleVendorCheckin()" class="bg-annsetu-green hover:bg-annsetu-lightgreen text-white font-bold text-xs px-5 py-2.5 rounded-xl transition shadow">
+              Admit Farmer
+            </button>
+          </div>
+
+          <div id="vendor-checkin-result" class="hidden p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 font-medium"></div>
+        </div>
+
+        <!-- 2. Weighing & Manual Payment Submission with Proof -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-bold text-gray-900 flex items-center gap-2">
+              <span>⚖️</span> Weighing & Payment Settlement
+            </h3>
+            <span class="text-xs bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded">Weighbridge</span>
+          </div>
+          <p class="text-xs text-gray-600">Record measured weight, calculate MSP amount, and attach transaction proof (UTR or receipt):</p>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-[11px] font-bold text-gray-600 uppercase mb-1">Booking Code / ID</label>
+              <input id="pay-booking-input" type="text" placeholder="AS-1047" class="w-full uppercase font-mono font-bold border border-gray-300 rounded-xl p-2 text-xs focus:outline-none" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-gray-600 uppercase mb-1">Actual Weight (Qtl)</label>
+              <input id="pay-actual-weight-input" type="number" step="0.1" value="50.0" oninput="onActualWeightInput()" class="w-full font-bold border border-gray-300 rounded-xl p-2 text-xs focus:outline-none" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-gray-600 uppercase mb-1">Amount (₹2,320/qtl)</label>
+              <input id="pay-amount-input" type="number" readonly class="w-full bg-gray-50 font-bold text-annsetu-green border border-gray-300 rounded-xl p-2 text-xs" />
+            </div>
+          </div>
+
+          <!-- Payment Method & Proof -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+            <div>
+              <label class="block text-[11px] font-bold text-gray-600 uppercase mb-1">Payment Method</label>
+              <select id="pay-method-select" class="w-full border border-gray-300 rounded-xl p-2 text-xs font-semibold focus:outline-none">
+                <option value="dbt">DBT (Direct Bank Transfer)</option>
+                <option value="cash">Mandi Cash Handover with Receipt</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-gray-600 uppercase mb-1">Proof Type</label>
+              <select id="pay-proof-type-select" onchange="onProofTypeChange()" class="w-full border border-gray-300 rounded-xl p-2 text-xs font-semibold focus:outline-none">
+                <option value="transaction_id">Bank UTR / Transaction ID</option>
+                <option value="photo_proof">Receipt Doc / Cash Handover Proof</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-bold text-gray-600 uppercase mb-1" id="proof-data-label">Enter UTR Number / Reference</label>
+            <input id="pay-proof-data-input" type="text" placeholder="e.g. PUNB9988776655 or Receipt #REC-4902" class="w-full font-mono border border-gray-300 rounded-xl p-2 text-xs focus:outline-none" />
+          </div>
+
+          <button onclick="handleSubmitPayment()" class="w-full bg-annsetu-blue hover:bg-blue-800 text-white font-bold py-2.5 rounded-xl text-xs transition shadow">
+            Submit Payment & Archive Transaction
+          </button>
+        </div>
+
+      </div>
+
+      <!-- BOTTOM SECTION: 120-min Slot Roster (Max 30 Farmers/Slot) & Transaction History -->
+      <div class="space-y-6">
+
+        <!-- Slot Roster -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+          <div class="flex justify-between items-center">
+            <div>
+              <h3 class="text-base font-bold text-gray-900">📋 Today's 120-Minute Time Slot Roster</h3>
+              <p class="text-xs text-gray-500">Each 120-minute window enforces a strict maximum cap of 30 registered farmers.</p>
+            </div>
+            <span class="text-xs bg-amber-100 text-amber-900 font-bold px-2.5 py-1 rounded-full">Cap: 30 / Window</span>
+          </div>
+
+          <div id="vendor-slots-roster-container" class="space-y-4">
+            <div class="text-xs text-gray-400">Loading roster...</div>
+          </div>
+        </div>
+
+        <!-- Vendor Transaction History -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+          <div class="flex justify-between items-center">
+            <div>
+              <h3 class="text-base font-bold text-gray-900">💳 Mandi Completed Transaction History</h3>
+              <p class="text-xs text-gray-500">Archived transactions with actual weighed quantity, amount paid, and verified proof.</p>
+            </div>
+            <button onclick="loadVendorTransactions()" class="text-xs font-semibold px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50">↻ Refresh</button>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-gray-100 text-gray-600 uppercase font-bold">
+                <tr>
+                  <th class="py-2.5 px-3">Date</th>
+                  <th class="py-2.5 px-3">Booking Code</th>
+                  <th class="py-2.5 px-3">Farmer Name</th>
+                  <th class="py-2.5 px-3">Actual Weight</th>
+                  <th class="py-2.5 px-3">Amount Paid</th>
+                  <th class="py-2.5 px-3">Method</th>
+                  <th class="py-2.5 px-3">Proof Details</th>
+                </tr>
+              </thead>
+              <tbody id="vendor-tx-table-body" class="divide-y divide-gray-100">
+                <tr>
+                  <td colspan="7" class="py-4 text-center text-gray-400">Loading transactions...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+    <!-- ================================================================= -->
+    <!-- VIEW: DISTRICT ADMIN CONSOLE                                      -->
+    <!-- ================================================================= -->
+    <div id="view-admin" class="hidden space-y-6">
+
+      <div class="bg-gradient-to-r from-purple-900 via-indigo-900 to-annsetu-dark text-white rounded-2xl p-6 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <div class="inline-flex items-center gap-2 bg-white/20 text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full">
+            <span>🏛️ Civil Supplies Administration</span>
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span>Admin Mobile: 123456890</span>
+          </div>
+          <h2 class="text-2xl font-black mt-2">District Admin Command Console</h2>
+          <p class="text-indigo-200 text-sm mt-1">Register new vendors/mandis, manage farmers/vendors, delete users, and edit/delete slot bookings.</p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="refreshAdminData()" class="bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-4 py-2 rounded-xl transition">
+            ↻ Refresh All Data
+          </button>
+        </div>
+      </div>
+
+      <!-- 1. Register Vendor / Mandi Form -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+        <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+          <div>
+            <h3 class="text-base font-bold text-gray-900">🏢 Register & Onboard New Mandi Centre</h3>
+            <p class="text-xs text-gray-500">Onboard a mandi centre, assign vendor manager credentials, and auto-provision standard 120-minute slots.</p>
+          </div>
+          <span class="text-xs bg-purple-100 text-purple-900 font-bold px-2.5 py-1 rounded-full">Admin Action</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Mandi Name</label>
+            <input id="admin-reg-name" type="text" placeholder="e.g. Amritsar Grain Mandi" class="w-full border border-gray-300 rounded-xl p-2.5 text-xs focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">State</label>
+            <input id="admin-reg-state" type="text" value="Punjab" class="w-full border border-gray-300 rounded-xl p-2.5 text-xs focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">City / District</label>
+            <input id="admin-reg-city" type="text" placeholder="e.g. Amritsar" class="w-full border border-gray-300 rounded-xl p-2.5 text-xs focus:outline-none" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Physical Address</label>
+            <input id="admin-reg-address" type="text" placeholder="Near Bypass Mandi Yard" class="w-full border border-gray-300 rounded-xl p-2.5 text-xs focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Manager Full Name</label>
+            <input id="admin-reg-manager-name" type="text" placeholder="Gurpreet Singh" class="w-full border border-gray-300 rounded-xl p-2.5 text-xs focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Initial Workers (C)</label>
+            <input id="admin-reg-workers" type="number" min="1" max="15" value="3" class="w-full border border-gray-300 rounded-xl p-2.5 text-xs focus:outline-none" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Manager Aadhaar (12 digits)</label>
+            <input id="admin-reg-manager-aadhaar" type="text" placeholder="998877665544" maxlength="16" class="w-full border border-gray-300 rounded-xl p-2.5 text-xs focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Manager Phone (Login Credential)</label>
+            <input id="admin-reg-manager-phone" type="text" placeholder="9876500099" class="w-full border border-gray-300 rounded-xl p-2.5 text-xs focus:outline-none" />
+          </div>
+        </div>
+
+        <button onclick="handleAdminRegisterVendor()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-6 py-2.5 rounded-xl transition shadow">
+          Register Mandi & Issue Vendor Access
+        </button>
+      </div>
+
+      <!-- 2. User & Vendor Directory -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="text-base font-bold text-gray-900">👥 Registered Users, Farmers & Mandi Vendors</h3>
+            <p class="text-xs text-gray-500">View contact details, Aadhaar, alternate person info, active bookings, and delete accounts.</p>
+          </div>
+          <button onclick="loadAdminUsers()" class="text-xs font-semibold px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50">↻ Refresh</button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-gray-100 text-gray-600 uppercase font-bold">
+              <tr>
+                <th class="py-2.5 px-3">Name</th>
+                <th class="py-2.5 px-3">Phone</th>
+                <th class="py-2.5 px-3">Role</th>
+                <th class="py-2.5 px-3">Aadhaar</th>
+                <th class="py-2.5 px-3">Alternate Contact</th>
+                <th class="py-2.5 px-3 text-center">Active Bookings</th>
+                <th class="py-2.5 px-3 text-center">Total</th>
+                <th class="py-2.5 px-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="admin-users-table-body" class="divide-y divide-gray-100">
+              <tr>
+                <td colspan="8" class="py-4 text-center text-gray-400">Loading users...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 3. All Bookings Management (Edit & Delete) -->
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="text-base font-bold text-gray-900">📅 Master Slot Bookings Management</h3>
+            <p class="text-xs text-gray-500">Edit produce weights, adjust statuses, or delete bookings across all mandis.</p>
+          </div>
+          <button onclick="loadAdminBookings()" class="text-xs font-semibold px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50">↻ Refresh</button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-gray-100 text-gray-600 uppercase font-bold">
+              <tr>
+                <th class="py-2.5 px-3">Code</th>
+                <th class="py-2.5 px-3">Farmer</th>
+                <th class="py-2.5 px-3">Mandi / City</th>
+                <th class="py-2.5 px-3">Time Window</th>
+                <th class="py-2.5 px-3">Est. Weight</th>
+                <th class="py-2.5 px-3">Status</th>
+                <th class="py-2.5 px-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-bookings-table-body" class="divide-y divide-gray-100">
+              <tr>
+                <td colspan="7" class="py-4 text-center text-gray-400">Loading bookings...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+  <!-- ================================================================= -->
+  <!-- MODAL: UNIFIED LOGIN / SIGNUP                                     -->
+  <!-- ================================================================= -->
+  <div id="auth-modal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-gray-200 animate-in fade-in">
+      
+      <!-- Modal Header -->
+      <div class="bg-gradient-to-r from-annsetu-green to-annsetu-blue p-6 text-white relative">
+        <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-white/80 hover:text-white font-bold text-lg">✕</button>
+        <span class="text-2xl">🌾</span>
+        <h3 class="text-xl font-black mt-1">AnnSetu Unified Access</h3>
+        <p class="text-xs text-green-100">MSP Mandi Queue Management & Transparent DBT</p>
+      </div>
+
+      <!-- Role Toggle Tabs (Farmer vs Vendor) -->
+      <div class="p-6">
+        <div class="flex bg-gray-100 p-1 rounded-xl mb-6 text-xs font-bold">
+          <button onclick="setAuthRole('farmer')" id="auth-tab-farmer" class="flex-1 py-2 rounded-lg bg-white text-annsetu-green shadow-sm transition">
+            🚜 Farmer
+          </button>
+          <button onclick="setAuthRole('vendor')" id="auth-tab-vendor" class="flex-1 py-2 rounded-lg text-gray-600 hover:text-gray-900 transition">
+            ⚖️ Vendor / Admin
+          </button>
+        </div>
+
+        <!-- FARMER SECTION -->
+        <div id="auth-section-farmer" class="space-y-4">
+          
+          <!-- Mode Toggle: Sign In vs Sign Up -->
+          <div class="flex justify-center space-x-6 text-xs font-bold border-b border-gray-100 pb-2">
+            <button onclick="setFarmerMode('login')" id="farmer-mode-login" class="text-annsetu-green border-b-2 border-annsetu-green pb-1">Sign In</button>
+            <button onclick="setFarmerMode('signup')" id="farmer-mode-signup" class="text-gray-400 hover:text-gray-600 pb-1">Create Account</button>
+          </div>
+
+          <!-- Farmer Login Form -->
+          <form id="farmer-login-form" onsubmit="event.preventDefault(); submitFarmerLogin();" class="space-y-3">
+            <div>
+              <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Farmer Phone Number</label>
+              <input id="farmer-login-phone" type="tel" placeholder="e.g. 9876543210" required class="w-full border border-gray-300 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-annsetu-green focus:outline-none" />
+            </div>
+
+            <!-- Demo Quick Click -->
+            <div class="p-2 bg-gray-50 rounded-lg text-[11px] text-gray-600">
+              <span class="font-bold">Demo Farmer:</span>
+              <button type="button" onclick="quickFillPhone('farmer-login-phone', '9876543210')" class="text-annsetu-green underline font-semibold ml-1">9876543210 (Balwinder)</button>
+            </div>
+
+            <button type="submit" class="w-full bg-annsetu-green hover:bg-annsetu-lightgreen text-white font-bold py-2.5 rounded-xl text-sm transition shadow">
+              Sign In as Farmer
+            </button>
+          </form>
+
+          <!-- Farmer Signup Form -->
+          <form id="farmer-signup-form" onsubmit="event.preventDefault(); submitFarmerSignup();" class="hidden space-y-3 text-xs">
+            <div>
+              <label class="block font-bold text-gray-700 uppercase mb-1">Phone Number</label>
+              <input id="farmer-reg-phone" type="tel" placeholder="e.g. 9812345678" required class="w-full border border-gray-300 rounded-xl p-2 text-xs focus:outline-none" />
+            </div>
+            <div>
+              <label class="block font-bold text-gray-700 uppercase mb-1">Farmer Full Name</label>
+              <input id="farmer-reg-name" type="text" placeholder="e.g. Balwinder Singh" required class="w-full border border-gray-300 rounded-xl p-2 text-xs focus:outline-none" />
+            </div>
+            <div>
+              <label class="block font-bold text-gray-700 uppercase mb-1">Farmer Aadhaar Number</label>
+              <input id="farmer-reg-aadhaar" type="text" placeholder="12-digit Aadhaar" maxlength="16" required class="w-full border border-gray-300 rounded-xl p-2 text-xs focus:outline-none" />
+            </div>
+
+            <!-- Alternate Person Fields (Requirement) -->
+            <div class="bg-amber-50 p-3 rounded-xl border border-amber-200 space-y-2">
+              <div class="text-[11px] font-bold text-amber-900">
+                👥 Designated Alternate Person Details
+              </div>
+              <p class="text-[10px] text-amber-800">If the farmer is unable to come to the Mandi, the designated alternate person can bring the produce with this Aadhaar.</p>
+              <div>
+                <label class="block font-semibold text-gray-700 mb-0.5">Alternate Person's Full Name</label>
+                <input id="farmer-reg-alt-name" type="text" placeholder="e.g. Manjit Kaur (Spouse / Son)" required class="w-full border border-gray-300 rounded-lg p-1.5 text-xs bg-white" />
+              </div>
+              <div>
+                <label class="block font-semibold text-gray-700 mb-0.5">Alternate Person's Aadhaar</label>
+                <input id="farmer-reg-alt-aadhaar" type="text" placeholder="12-digit Aadhaar" maxlength="16" required class="w-full border border-gray-300 rounded-lg p-1.5 text-xs bg-white" />
+              </div>
+            </div>
+
+            <button type="submit" class="w-full bg-annsetu-green hover:bg-annsetu-lightgreen text-white font-bold py-2.5 rounded-xl text-sm transition shadow">
+              Register Farmer Profile
+            </button>
+          </form>
+
+        </div>
+
+        <!-- VENDOR / ADMIN SECTION -->
+        <div id="auth-section-vendor" class="hidden space-y-4">
+          
+          <!-- Vendor Requirement Alert -->
+          <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900">
+            <span class="font-bold block mb-0.5">⚠️ Vendor Onboarding Notice:</span>
+            Contact your administrator to onboard your center and get credentials. Only registered mandi vendors and district administrators can sign in here.
+          </div>
+
+          <form id="vendor-login-form" onsubmit="event.preventDefault(); submitVendorLogin();" class="space-y-3">
+            <div>
+              <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Registered Mobile Number</label>
+              <input id="vendor-login-phone" type="tel" placeholder="e.g. 123456890 or 9876500001" required class="w-full border border-gray-300 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-annsetu-blue focus:outline-none" />
+            </div>
+
+            <!-- Demo Quick Click Buttons for Vendor & Pre-Existing Admin -->
+            <div class="p-3 bg-gray-50 rounded-xl text-xs space-y-2">
+              <div class="font-bold text-gray-700 text-[11px] uppercase">Quick Demo Credentials:</div>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" onclick="quickFillPhone('vendor-login-phone', '123456890')" class="bg-purple-100 hover:bg-purple-200 text-purple-900 text-[11px] font-bold px-2.5 py-1 rounded-lg">
+                  🏛️ Admin: 123456890
+                </button>
+                <button type="button" onclick="quickFillPhone('vendor-login-phone', '9876500001')" class="bg-blue-100 hover:bg-blue-200 text-blue-900 text-[11px] font-bold px-2.5 py-1 rounded-lg">
+                  ⚖️ Vendor: 9876500001 (Khanna)
+                </button>
+              </div>
+            </div>
+
+            <button type="submit" class="w-full bg-annsetu-blue hover:bg-blue-800 text-white font-bold py-2.5 rounded-xl text-sm transition shadow">
+              Sign In to Console
+            </button>
+          </form>
+
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ================================================================= -->
+  <!-- MODAL: EDIT BOOKING (ADMIN)                                       -->
+  <!-- ================================================================= -->
+  <div id="edit-booking-modal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 border border-gray-200">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="text-base font-bold text-gray-900">Edit Booking: <span id="edit-booking-modal-code" class="text-indigo-600">AS-0000</span></h3>
+        <button onclick="closeEditBookingModal()" class="text-gray-400 hover:text-gray-600 font-bold">✕</button>
+      </div>
+
+      <input type="hidden" id="edit-booking-id" />
+
+      <div>
+        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Produce Weight (Quintals)</label>
+        <input id="edit-booking-weight" type="number" step="0.5" class="w-full border rounded-xl p-2 text-xs" />
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-gray-700 uppercase mb-1">Status</label>
+        <select id="edit-booking-status" class="w-full border rounded-xl p-2 text-xs font-semibold">
+          <option value="booked">Booked</option>
+          <option value="arrived">Arrived (In Queue)</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+
+      <div class="flex justify-end space-x-2 pt-2">
+        <button onclick="closeEditBookingModal()" class="px-3 py-1.5 border rounded-xl text-xs font-semibold hover:bg-gray-50">Cancel</button>
+        <button onclick="submitEditBooking()" class="px-4 py-1.5 bg-indigo-600 text-white font-bold rounded-xl text-xs hover:bg-indigo-700">Save Changes</button>
+      </div>
+    </div>
+  </div>
+  <!-- JAVASCRIPT APPLICATION LOGIC -->
+  <script>
+    const state = {
+      currentUser: JSON.parse(localStorage.getItem('annsetu_user')) || null,
+      activeRoleView: 'farmer',
+      statesCities: {},
+      centres: [],
+      currentCentre: null,
+      activeBooking: null,
+      vendorCentreId: 'centre-khanna',
+    };
+
+    const MSP_RATE = 2320.00;
+
+    function switchView(role) {
+      state.activeRoleView = role;
+      ['farmer', 'vendor', 'admin'].forEach(r => {
+        const v = document.getElementById(`view-${r}`);
+        const t = document.getElementById(`tab-${r}`);
+        if (v) v.classList.add('hidden');
+        if (t) {
+          t.classList.remove('bg-white', 'text-annsetu-green', 'text-gray-900', 'shadow-sm');
+          t.classList.add('text-white');
+        }
+      });
+
+      const activeView = document.getElementById(`view-${role}`);
+      const activeTab = document.getElementById(`tab-${role}`);
+      if (activeView) activeView.classList.remove('hidden');
+      if (activeTab) {
+        activeTab.classList.add('bg-white', role === 'admin' ? 'text-indigo-900' : 'text-annsetu-green', 'shadow-sm');
+        activeTab.classList.remove('text-white');
+      }
+
+      if (role === 'farmer') loadFarmerView();
+      if (role === 'vendor') loadVendorView();
+      if (role === 'admin') loadAdminData();
+    }
+
+    function goToHome() {
+      if (state.currentUser && state.currentUser.role === 'admin') switchView('admin');
+      else if (state.currentUser && state.currentUser.role === 'vendor') switchView('vendor');
+      else switchView('farmer');
+    }
+
+    function showGlobalAlert(msg, type = 'info') {
+      const box = document.getElementById('global-alert');
+      const boxInner = document.getElementById('global-alert-box');
+      const text = document.getElementById('global-alert-msg');
+      const icon = document.getElementById('global-alert-icon');
+      
+      text.innerText = msg;
+      box.classList.remove('hidden');
+
+      if (type === 'success') {
+        boxInner.className = 'p-4 rounded-xl flex items-center justify-between text-sm shadow-sm bg-emerald-50 border border-emerald-300 text-emerald-900';
+        icon.innerText = '✅';
+      } else if (type === 'error') {
+        boxInner.className = 'p-4 rounded-xl flex items-center justify-between text-sm shadow-sm bg-red-50 border border-red-300 text-red-900';
+        icon.innerText = '❌';
+      } else {
+        boxInner.className = 'p-4 rounded-xl flex items-center justify-between text-sm shadow-sm bg-blue-50 border border-blue-300 text-blue-900';
+        icon.innerText = 'ℹ️';
+      }
+    }
+
+    function closeGlobalAlert() {
+      document.getElementById('global-alert').classList.add('hidden');
+    }
+
+    function openAuthModal(mode) {
+      document.getElementById('auth-modal').classList.remove('hidden');
+    }
+
+    function closeAuthModal() {
+      document.getElementById('auth-modal').classList.add('hidden');
+    }
+
+    function setAuthRole(role) {
+      const farmerSec = document.getElementById('auth-section-farmer');
+      const vendorSec = document.getElementById('auth-section-vendor');
+      const tabFarmer = document.getElementById('auth-tab-farmer');
+      const tabVendor = document.getElementById('auth-tab-vendor');
+
+      if (role === 'farmer') {
+        farmerSec.classList.remove('hidden');
+        vendorSec.classList.add('hidden');
+        tabFarmer.className = 'flex-1 py-2 rounded-lg bg-white text-annsetu-green shadow-sm transition';
+        tabVendor.className = 'flex-1 py-2 rounded-lg text-gray-600 hover:text-gray-900 transition';
+      } else {
+        farmerSec.classList.add('hidden');
+        vendorSec.classList.remove('hidden');
+        tabVendor.className = 'flex-1 py-2 rounded-lg bg-white text-annsetu-blue shadow-sm transition';
+        tabFarmer.className = 'flex-1 py-2 rounded-lg text-gray-600 hover:text-gray-900 transition';
+      }
+    }
+
+    function setFarmerMode(mode) {
+      const loginForm = document.getElementById('farmer-login-form');
+      const signupForm = document.getElementById('farmer-signup-form');
+      const btnLogin = document.getElementById('farmer-mode-login');
+      const btnSignup = document.getElementById('farmer-mode-signup');
+
+      if (mode === 'login') {
+        loginForm.classList.remove('hidden');
+        signupForm.classList.add('hidden');
+        btnLogin.className = 'text-annsetu-green border-b-2 border-annsetu-green pb-1';
+        btnSignup.className = 'text-gray-400 hover:text-gray-600 pb-1';
+      } else {
+        loginForm.classList.add('hidden');
+        signupForm.classList.remove('hidden');
+        btnSignup.className = 'text-annsetu-green border-b-2 border-annsetu-green pb-1';
+        btnLogin.className = 'text-gray-400 hover:text-gray-600 pb-1';
+      }
+    }
+
+    function quickFillPhone(inputId, val) {
+      document.getElementById(inputId).value = val;
+    }
+
+    function updateNavForUser() {
+      const userBadge = document.getElementById('user-badge');
+      const authBtnContainer = document.getElementById('auth-btn-container');
+      const nameDisp = document.getElementById('user-name-display');
+      const roleDisp = document.getElementById('user-role-display');
+      const tabAdmin = document.getElementById('tab-admin');
+      const navTabs = document.getElementById('nav-tabs');
+
+      if (state.currentUser) {
+        userBadge.classList.remove('hidden');
+        authBtnContainer.classList.add('hidden');
+        navTabs.classList.remove('hidden');
+        nameDisp.innerText = state.currentUser.full_name || state.currentUser.phone;
+        roleDisp.innerText = state.currentUser.role.toUpperCase();
+
+        if (state.currentUser.role === 'admin') {
+          tabAdmin.classList.remove('hidden');
+        } else {
+          tabAdmin.classList.add('hidden');
+        }
+      } else {
+        userBadge.classList.add('hidden');
+        authBtnContainer.classList.remove('hidden');
+        tabAdmin.classList.add('hidden');
+      }
+    }
+
+    function handleLogout() {
+      state.currentUser = null;
+      localStorage.removeItem('annsetu_user');
+      updateNavForUser();
+      switchView('farmer');
+      showGlobalAlert('Logged out successfully', 'info');
+    }
+
+    async function submitFarmerLogin() {
+      const phone = document.getElementById('farmer-login-phone').value.trim();
+      try {
+        const res = await fetch('/api/v1/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: phone, role: 'farmer' })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Login failed');
+
+        state.currentUser = data;
+        localStorage.setItem('annsetu_user', JSON.stringify(data));
+        closeAuthModal();
+        updateNavForUser();
+        switchView('farmer');
+        showGlobalAlert(`Welcome back, ${data.full_name}!`, 'success');
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function submitFarmerSignup() {
+      const phone = document.getElementById('farmer-reg-phone').value.trim();
+      const name = document.getElementById('farmer-reg-name').value.trim();
+      const aadhaar = document.getElementById('farmer-reg-aadhaar').value.trim();
+      const altName = document.getElementById('farmer-reg-alt-name').value.trim();
+      const altAadhaar = document.getElementById('farmer-reg-alt-aadhaar').value.trim();
+
+      try {
+        const res = await fetch('/api/v1/auth/farmer/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phone: phone,
+            full_name: name,
+            aadhaar_number: aadhaar,
+            alt_person_name: altName,
+            alt_person_aadhaar: altAadhaar
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Signup failed');
+
+        state.currentUser = data;
+        localStorage.setItem('annsetu_user', JSON.stringify(data));
+        closeAuthModal();
+        updateNavForUser();
+        switchView('farmer');
+        showGlobalAlert(`Registration successful! Welcome, ${data.full_name}.`, 'success');
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function submitVendorLogin() {
+      const phone = document.getElementById('vendor-login-phone').value.trim();
+      try {
+        const res = await fetch('/api/v1/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: phone, role: 'vendor' })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Login failed');
+
+        state.currentUser = data;
+        localStorage.setItem('annsetu_user', JSON.stringify(data));
+        closeAuthModal();
+        updateNavForUser();
+
+        if (data.role === 'admin') {
+          switchView('admin');
+          showGlobalAlert(`Welcome, District Administrator! Admin controls unlocked.`, 'success');
+        } else {
+          if (data.centre_id) state.vendorCentreId = data.centre_id;
+          switchView('vendor');
+          showGlobalAlert(`Welcome, Mandi Manager ${data.full_name}!`, 'success');
+        }
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+    async function loadFarmerView() {
+      await loadStatesAndCities();
+      await loadCentresSidebar();
+      if (state.currentUser) {
+        await loadFarmerHistory();
+      }
+    }
+
+    async function loadStatesAndCities() {
+      try {
+        const res = await fetch('/api/v1/centres/states-cities');
+        state.statesCities = await res.json();
+        const stateSelect = document.getElementById('select-state');
+        stateSelect.innerHTML = '<option value="">Select State</option>';
+        Object.keys(state.statesCities).forEach(s => {
+          stateSelect.innerHTML += `<option value="${s}">${s}</option>`;
+        });
+
+        if (Object.keys(state.statesCities).length > 0) {
+          const firstState = Object.keys(state.statesCities)[0];
+          stateSelect.value = firstState;
+          onStateChange();
+        }
+      } catch (err) {
+        console.error('Failed to load states/cities:', err);
+      }
+    }
+
+    function onStateChange() {
+      const s = document.getElementById('select-state').value;
+      const citySelect = document.getElementById('select-city');
+      citySelect.innerHTML = '<option value="">Select City</option>';
+      citySelect.disabled = !s;
+
+      if (s && state.statesCities[s]) {
+        state.statesCities[s].forEach(c => {
+          citySelect.innerHTML += `<option value="${c}">${c}</option>`;
+        });
+        if (state.statesCities[s].length > 0) {
+          citySelect.value = state.statesCities[s][0];
+          onCityChange();
+        }
+      }
+    }
+
+    async function onCityChange() {
+      const s = document.getElementById('select-state').value;
+      const c = document.getElementById('select-city').value;
+      const centreSelect = document.getElementById('select-centre');
+      centreSelect.innerHTML = '<option value="">Loading centres...</option>';
+      centreSelect.disabled = true;
+
+      try {
+        const res = await fetch(`/api/v1/centres?state=${encodeURIComponent(s)}&city=${encodeURIComponent(c)}`);
+        state.centres = await res.json();
+        centreSelect.innerHTML = '<option value="">Select Mandi</option>';
+        state.centres.forEach(centre => {
+          centreSelect.innerHTML += `<option value="${centre.id}">${centre.name} (Wait: ${centre.current_eta_minutes !== null ? centre.current_eta_minutes + 'm' : 'Paused'})</option>`;
+        });
+        centreSelect.disabled = false;
+        if (state.centres.length > 0) {
+          centreSelect.value = state.centres[0].id;
+          onCentreChange();
+        }
+      } catch (err) {
+        console.error('Failed to fetch centres:', err);
+      }
+    }
+
+    async function onCentreChange() {
+      const centreId = document.getElementById('select-centre').value;
+      if (!centreId) return;
+
+      const centre = state.centres.find(c => c.id === centreId);
+      if (centre) {
+        state.currentCentre = centre;
+        document.getElementById('selected-centre-info').classList.remove('hidden');
+        document.getElementById('info-centre-name').innerText = centre.name;
+        document.getElementById('info-centre-workers').innerText = `Workers (C): ${centre.workers_count}`;
+        document.getElementById('info-centre-factor').innerText = `Factor (F): ${centre.capacity_factor} (${centre.status})`;
+        document.getElementById('info-centre-status').innerText = centre.status;
+        document.getElementById('info-centre-wait').innerText = `Live Wait: ${centre.current_eta_minutes !== null ? centre.current_eta_minutes + ' mins' : 'Paused'}`;
+      }
+
+      const slotSelect = document.getElementById('select-slot');
+      slotSelect.innerHTML = '<option value="">Loading 120m slots...</option>';
+      slotSelect.disabled = true;
+
+      try {
+        const res = await fetch(`/api/v1/centres/${centreId}/slots`);
+        const slots = await res.json();
+        slotSelect.innerHTML = '<option value="">Select Time Window</option>';
+        slots.forEach(slot => {
+          const capText = `${slot.booked_units}/${slot.capacity_units} booked`;
+          const disabled = slot.booked_units >= slot.capacity_units ? 'disabled' : '';
+          slotSelect.innerHTML += `<option value="${slot.id}" ${disabled}>${slot.time_window} (${capText} - ${slot.remaining_units} open)</option>`;
+        });
+        slotSelect.disabled = false;
+      } catch (err) {
+        console.error('Failed to load slots:', err);
+      }
+    }
+
+    document.getElementById('input-est-weight').addEventListener('input', (e) => {
+      const qtl = parseFloat(e.target.value) || 0;
+      const total = qtl * MSP_RATE;
+      document.getElementById('est-payout-calc').innerText = `₹${total.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+    });
+
+    async function handleBookSlot() {
+      if (!state.currentUser) {
+        openAuthModal('login');
+        showGlobalAlert('Please sign in or register to book a slot', 'info');
+        return;
+      }
+
+      const centreId = document.getElementById('select-centre').value;
+      const slotId = document.getElementById('select-slot').value;
+      const weight = parseFloat(document.getElementById('input-est-weight').value);
+
+      if (!centreId || !slotId || !weight || weight <= 0) {
+        alert('Please select a Mandi, 120-minute Slot Window, and valid estimated weight.');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/v1/bookings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            farmer_id: state.currentUser.user_id,
+            centre_id: centreId,
+            slot_id: slotId,
+            estimated_weight_quintals: weight,
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to book slot');
+
+        showGlobalAlert(`Slot Booked Successfully! Gate Pass: ${data.unique_booking_code}`, 'success');
+        await loadFarmerHistory();
+        renderActiveBooking(data);
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function handleArrivalConfirm() {
+      if (!state.activeBooking) return;
+      try {
+        const res = await fetch('/api/v1/bookings/arrival-confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ booking_code: state.activeBooking.unique_booking_code })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to confirm arrival');
+
+        showGlobalAlert(`Arrival Confirmed! Position #${data.position} in live queue. Est. wait: ${data.eta_minutes} mins.`, 'success');
+        await loadFarmerHistory();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function handleCancelActiveBooking() {
+      if (!state.activeBooking) return;
+      if (!confirm(`Are you sure you want to cancel booking ${state.activeBooking.unique_booking_code}? This releases your slot quota.`)) return;
+
+      try {
+        const res = await fetch(`/api/v1/bookings/${state.activeBooking.id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to cancel');
+
+        showGlobalAlert('Booking cancelled successfully', 'info');
+        state.activeBooking = null;
+        document.getElementById('farmer-active-booking-card').classList.add('hidden');
+        document.getElementById('farmer-quick-status').innerText = 'No Active Booking';
+        document.getElementById('farmer-quick-eta').innerText = 'Select a mandi to reserve';
+        await loadFarmerHistory();
+        if (state.currentCentre) onCentreChange();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function loadFarmerHistory() {
+      if (!state.currentUser) return;
+      try {
+        const res = await fetch(`/api/v1/bookings/farmer/${state.currentUser.user_id}`);
+        const bookings = await res.json();
+        const tbody = document.getElementById('farmer-history-table-body');
+        
+        if (!bookings || bookings.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-gray-400">No previous bookings found. Book your first slot above!</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = bookings.map(b => {
+          const statusCls = `status-${b.status}`;
+          let proofDisplay = '--';
+          if (b.transaction) {
+            proofDisplay = `<span class="text-emerald-700 font-bold">₹${b.transaction.amount_paid.toLocaleString('en-IN')}</span> (${b.transaction.proof_data})`;
+          }
+
+          let actionBtn = '--';
+          if (b.status === 'booked' || b.status === 'arrived') {
+            actionBtn = `<button onclick="cancelBookingById('${b.id}', '${b.unique_booking_code}')" class="text-red-600 hover:text-red-800 font-bold underline">Cancel</button>`;
+          }
+
+          return `
+            <tr class="hover:bg-gray-50 transition">
+              <td class="py-3 px-3 font-mono font-bold text-gray-900">${b.unique_booking_code}</td>
+              <td class="py-3 px-3 font-semibold text-gray-800">${b.centre_name} (${b.city})</td>
+              <td class="py-3 px-3">${b.slot_date} · <span class="font-bold">${b.time_window}</span></td>
+              <td class="py-3 px-3 font-semibold">${b.estimated_weight_quintals} Qtl</td>
+              <td class="py-3 px-3"><span class="badge ${statusCls}">${b.status.toUpperCase()}</span></td>
+              <td class="py-3 px-3 font-mono text-[11px]">${proofDisplay}</td>
+              <td class="py-3 px-3 text-right">${actionBtn}</td>
+            </tr>
+          `;
+        }).join('');
+
+        const active = bookings.find(b => ['booked', 'arrived', 'in_queue', 'completed'].includes(b.status));
+        if (active && active.status !== 'cancelled') {
+          renderActiveBooking(active);
+        } else {
+          document.getElementById('farmer-active-booking-card').classList.add('hidden');
+        }
+      } catch (err) {
+        console.error('Failed to load farmer history:', err);
+      }
+    }
+
+    async function cancelBookingById(id, code) {
+      if (!confirm(`Cancel booking ${code}?`)) return;
+      try {
+        const res = await fetch(`/api/v1/bookings/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Cancellation failed');
+        showGlobalAlert(`Booking ${code} cancelled`, 'info');
+        loadFarmerHistory();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+    function renderActiveBooking(b) {
+      state.activeBooking = b;
+      const card = document.getElementById('farmer-active-booking-card');
+      card.classList.remove('hidden');
+
+      document.getElementById('active-booking-code').innerText = b.unique_booking_code;
+      document.getElementById('active-booking-centre-slot').innerText = `${b.centre_name} (${b.city}) · ${b.slot_date} (${b.time_window})`;
+      
+      const badge = document.getElementById('active-booking-status-badge');
+      badge.className = `badge status-${b.status} uppercase tracking-wider`;
+      badge.innerText = b.status;
+
+      const etaBox = document.getElementById('active-booking-eta');
+      const posBox = document.getElementById('active-booking-queue-pos');
+      const arrivalBtn = document.getElementById('btn-arrival-confirm');
+      const paySection = document.getElementById('payment-confirmation-section');
+
+      if (b.status === 'arrived' || b.status === 'in_queue') {
+        posBox.innerText = `Queue Position: #${b.queue_position || 1} in line`;
+        etaBox.innerText = b.eta_minutes !== null ? `~${b.eta_minutes} min` : 'Paused';
+        arrivalBtn.classList.add('hidden');
+        document.getElementById('arrival-status-text').innerText = '✓ Arrived at Mandi. In active weighing line.';
+        document.getElementById('farmer-quick-status').innerText = `Gate Pass ${b.unique_booking_code} (Queue #${b.queue_position || 1})`;
+        document.getElementById('farmer-quick-eta').innerText = `Est. Wait: ${b.eta_minutes || '--'} mins`;
+      } else if (b.status === 'completed') {
+        posBox.innerText = 'Completed & Dispatched';
+        etaBox.innerText = 'Done';
+        arrivalBtn.classList.add('hidden');
+        document.getElementById('arrival-status-text').innerText = 'Lot accepted & payment settled.';
+        document.getElementById('farmer-quick-status').innerText = `Pass ${b.unique_booking_code}: Completed`;
+        document.getElementById('farmer-quick-eta').innerText = 'Payment Settled';
+
+        if (b.transaction) {
+          paySection.classList.remove('hidden');
+          document.getElementById('pay-actual-weight').innerText = `${b.transaction.actual_weight_quintals} Qtl`;
+          document.getElementById('pay-amount-paid').innerText = `₹${b.transaction.amount_paid.toLocaleString('en-IN')}`;
+          document.getElementById('pay-method').innerText = b.transaction.payment_method.toUpperCase();
+          document.getElementById('pay-proof-data').innerText = b.transaction.proof_data;
+        }
+      } else {
+        posBox.innerText = 'Not yet arrived at venue';
+        etaBox.innerText = '-- min';
+        arrivalBtn.classList.remove('hidden');
+        document.getElementById('arrival-status-text').innerText = 'Click when you arrive at the venue to enter the virtual queue.';
+        document.getElementById('farmer-quick-status').innerText = `Booked: ${b.unique_booking_code}`;
+        document.getElementById('farmer-quick-eta').innerText = `${b.time_window}`;
+        paySection.classList.add('hidden');
+      }
+    }
+
+    async function loadCentresSidebar() {
+      try {
+        const res = await fetch('/api/v1/centres');
+        const data = await res.json();
+        const container = document.getElementById('mandi-list-sidebar');
+        container.innerHTML = data.map(c => `
+          <div class="p-2.5 rounded-xl border border-gray-200 bg-white hover:border-annsetu-green transition text-xs flex justify-between items-center">
+            <div>
+              <div class="font-bold text-gray-900">${c.name}</div>
+              <div class="text-[11px] text-gray-500">${c.city}, ${c.state} · ${c.workers_count} Workers</div>
+            </div>
+            <div class="text-right">
+              <span class="badge ${c.status === 'NORMAL' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'} text-[10px]">${c.status}</span>
+              <div class="font-bold text-gray-700 text-[11px] mt-0.5">${c.current_eta_minutes !== null ? '~' + c.current_eta_minutes + ' min' : 'Paused'}</div>
+            </div>
+          </div>
+        `).join('');
+      } catch (err) {
+        console.error('Failed to load sidebar centres:', err);
+      }
+    }
+
+    async function loadVendorView() {
+      await loadVendorCentresDropdown();
+      await loadVendorSettings();
+      await loadVendorRoster();
+      await loadVendorTransactions();
+    }
+
+    async function loadVendorCentresDropdown() {
+      try {
+        const res = await fetch('/api/v1/centres');
+        const data = await res.json();
+        const select = document.getElementById('vendor-mandi-select');
+        select.innerHTML = data.map(c => `<option value="${c.id}" ${c.id === state.vendorCentreId ? 'selected' : ''}>${c.name} (${c.city})</option>`).join('');
+      } catch (err) {
+        console.error('Failed to load vendor mandi dropdown:', err);
+      }
+    }
+
+    function onVendorMandiChange() {
+      state.vendorCentreId = document.getElementById('vendor-mandi-select').value;
+      refreshVendorData();
+    }
+
+    function refreshVendorData() {
+      loadVendorSettings();
+      loadVendorRoster();
+      loadVendorTransactions();
+    }
+
+    async function loadVendorSettings() {
+      try {
+        const res = await fetch(`/api/v1/vendor/${state.vendorCentreId}/settings`);
+        const data = await res.json();
+        document.getElementById('vendor-centre-title').innerText = data.mandi_name;
+        document.getElementById('vendor-workers-input').value = data.workers_count;
+
+        const radios = document.getElementsByName('vendor-factor-radio');
+        radios.forEach(r => {
+          const [factorVal, statusVal] = r.value.split(':');
+          if (parseFloat(factorVal) === data.capacity_factor || statusVal === data.status) {
+            r.checked = true;
+          }
+        });
+      } catch (err) {
+        console.error('Failed to load vendor settings:', err);
+      }
+    }
+
+    async function handleSaveVendorSettings() {
+      const workers = parseInt(document.getElementById('vendor-workers-input').value) || 1;
+      const radios = document.getElementsByName('vendor-factor-radio');
+      let selectedFactor = 1.0;
+      let selectedStatus = 'NORMAL';
+
+      radios.forEach(r => {
+        if (r.checked) {
+          const [f, s] = r.value.split(':');
+          selectedFactor = parseFloat(f);
+          selectedStatus = s;
+        }
+      });
+
+      try {
+        const res = await fetch(`/api/v1/vendor/${state.vendorCentreId}/settings`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            workers_count: workers,
+            capacity_factor: selectedFactor,
+            status: selectedStatus,
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to update settings');
+
+        showGlobalAlert(`Settings saved! Workers C=${workers}, Capacity Factor F=${selectedFactor} (${selectedStatus}). KisanQueue ETAs recalculated in real time!`, 'success');
+        loadVendorRoster();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function handleVendorCheckin() {
+      const code = document.getElementById('vendor-checkin-code').value.trim();
+      if (!code) {
+        alert('Please enter a booking code');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/v1/vendor/scan-checkin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ booking_code: code })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Check-in failed');
+
+        const resultBox = document.getElementById('vendor-checkin-result');
+        resultBox.innerHTML = `✓ Farmer <strong>${data.farmer_name}</strong> (Code: ${data.booking_code}) admitted to virtual queue!`;
+        resultBox.classList.remove('hidden');
+
+        document.getElementById('pay-booking-input').value = data.booking_code;
+
+        showGlobalAlert(`Farmer ${data.farmer_name} checked in successfully!`, 'success');
+        loadVendorRoster();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    function onActualWeightInput() {
+      const qtl = parseFloat(document.getElementById('pay-actual-weight-input').value) || 0;
+      const amt = qtl * MSP_RATE;
+      document.getElementById('pay-amount-input').value = amt.toFixed(2);
+    }
+
+    function onProofTypeChange() {
+      const ptype = document.getElementById('pay-proof-type-select').value;
+      const label = document.getElementById('proof-data-label');
+      const input = document.getElementById('pay-proof-data-input');
+      if (ptype === 'transaction_id') {
+        label.innerText = 'Bank UTR Number / Digital Transaction Reference';
+        input.placeholder = 'e.g. PUNB9988776655';
+      } else {
+        label.innerText = 'Cash Handover Receipt Ref / Signed Document Photo URL';
+        input.placeholder = 'e.g. REC-CASH-78214 or data:image/png;base64,...';
+      }
+    }
+
+    async function handleSubmitPayment() {
+      const codeOrId = document.getElementById('pay-booking-input').value.trim();
+      const weight = parseFloat(document.getElementById('pay-actual-weight-input').value);
+      const method = document.getElementById('pay-method-select').value;
+      const ptype = document.getElementById('pay-proof-type-select').value;
+      const pdata = document.getElementById('pay-proof-data-input').value.trim();
+
+      if (!codeOrId || !weight || weight <= 0 || !pdata) {
+        alert('Please fill in Booking Code, valid Weight, and Payment Proof (UTR or receipt).');
+        return;
+      }
+
+      const amount = weight * MSP_RATE;
+
+      try {
+        const res = await fetch('/api/v1/vendor/payment/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            booking_id: codeOrId,
+            actual_weight_quintals: weight,
+            amount_paid: amount,
+            payment_method: method,
+            proof_type: ptype,
+            proof_data: pdata
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Payment submission failed');
+
+        showGlobalAlert(`Payment Recorded Successfully! Total: ₹${amount.toLocaleString('en-IN')}. Booking completed.`, 'success');
+        document.getElementById('pay-booking-input').value = '';
+        document.getElementById('pay-proof-data-input').value = '';
+        loadVendorRoster();
+        loadVendorTransactions();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+    async function loadVendorRoster() {
+      try {
+        const res = await fetch(`/api/v1/vendor/${state.vendorCentreId}/slots/roster`);
+        const roster = await res.json();
+        const container = document.getElementById('vendor-slots-roster-container');
+
+        if (!roster || roster.length === 0) {
+          container.innerHTML = '<div class="text-xs text-gray-400">No slot schedule found for today.</div>';
+          return;
+        }
+
+        container.innerHTML = roster.map(slot => {
+          const capPercent = Math.round((slot.booked_units / slot.capacity_units) * 100);
+          const farmersRows = slot.farmers && slot.farmers.length > 0
+            ? slot.farmers.map(f => `
+                <tr class="hover:bg-gray-50 text-xs">
+                  <td class="py-2 px-3 font-mono font-bold">${f.booking_code}</td>
+                  <td class="py-2 px-3 font-semibold">${f.farmer_name}</td>
+                  <td class="py-2 px-3 text-gray-500">${f.farmer_phone}</td>
+                  <td class="py-2 px-3 font-semibold">${f.estimated_weight} Qtl</td>
+                  <td class="py-2 px-3"><span class="badge status-${f.status}">${f.status.toUpperCase()}</span></td>
+                  <td class="py-2 px-3 text-right">
+                    <button onclick="prefillVendorPayment('${f.booking_code}', ${f.estimated_weight})" class="text-blue-600 hover:text-blue-800 font-bold underline text-[11px]">Weigh & Pay</button>
+                  </td>
+                </tr>
+              `).join('')
+            : '<tr><td colspan="6" class="py-2 px-3 text-center text-gray-400 text-xs">No farmers booked in this slot yet.</td></tr>';
+
+          return `
+            <div class="border border-gray-200 rounded-xl overflow-hidden">
+              <div class="bg-gray-50 px-4 py-3 flex flex-wrap items-center justify-between gap-2 border-b border-gray-200">
+                <div class="flex items-center space-x-3">
+                  <span class="text-sm font-black text-gray-900">⏰ ${slot.time_window}</span>
+                  <span class="text-xs font-semibold text-gray-600">(${slot.booked_units} / ${slot.capacity_units} Farmers)</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                  <div class="w-24 bg-gray-200 rounded-full h-2">
+                    <div class="bg-annsetu-green h-2 rounded-full" style="width: ${capPercent}%"></div>
+                  </div>
+                  <span class="text-[11px] font-bold text-gray-600">${capPercent}% Capacity</span>
+                </div>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                  <thead class="bg-white text-gray-500 text-[11px] uppercase border-b">
+                    <tr>
+                      <th class="py-2 px-3">Pass Code</th>
+                      <th class="py-2 px-3">Farmer Name</th>
+                      <th class="py-2 px-3">Phone</th>
+                      <th class="py-2 px-3">Declared Weight</th>
+                      <th class="py-2 px-3">Status</th>
+                      <th class="py-2 px-3 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-100">
+                    ${farmersRows}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error('Failed to load roster:', err);
+      }
+    }
+
+    function prefillVendorPayment(code, weight) {
+      document.getElementById('pay-booking-input').value = code;
+      document.getElementById('pay-actual-weight-input').value = weight;
+      onActualWeightInput();
+      window.scrollTo({ top: 400, behavior: 'smooth' });
+    }
+
+    async function loadVendorTransactions() {
+      try {
+        const res = await fetch(`/api/v1/vendor/${state.vendorCentreId}/transactions`);
+        const txs = await res.json();
+        const tbody = document.getElementById('vendor-tx-table-body');
+
+        if (!txs || txs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-gray-400">No completed transactions recorded yet.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = txs.map(t => `
+          <tr class="hover:bg-gray-50 text-xs">
+            <td class="py-2.5 px-3 text-gray-500">${new Date(t.created_at).toLocaleDateString()}</td>
+            <td class="py-2.5 px-3 font-mono font-bold">${t.booking_code}</td>
+            <td class="py-2.5 px-3 font-semibold text-gray-800">${t.farmer_name}</td>
+            <td class="py-2.5 px-3 font-bold">${t.actual_weight_quintals} Qtl</td>
+            <td class="py-2.5 px-3 font-bold text-emerald-700">₹${t.amount_paid.toLocaleString('en-IN')}</td>
+            <td class="py-2.5 px-3"><span class="badge bg-blue-50 text-blue-800">${t.payment_method.toUpperCase()}</span></td>
+            <td class="py-2.5 px-3 font-mono text-[11px] text-gray-600">${t.proof_data}</td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('Failed to load vendor transactions:', err);
+      }
+    }
+
+    async function loadAdminData() {
+      await loadAdminUsers();
+      await loadAdminBookings();
+    }
+
+    function refreshAdminData() {
+      loadAdminUsers();
+      loadAdminBookings();
+    }
+
+    async function handleAdminRegisterVendor() {
+      const name = document.getElementById('admin-reg-name').value.trim();
+      const stateVal = document.getElementById('admin-reg-state').value.trim();
+      const city = document.getElementById('admin-reg-city').value.trim();
+      const addr = document.getElementById('admin-reg-address').value.trim();
+      const mgrName = document.getElementById('admin-reg-manager-name').value.trim();
+      const mgrAadhaar = document.getElementById('admin-reg-manager-aadhaar').value.trim();
+      const mgrPhone = document.getElementById('admin-reg-manager-phone').value.trim();
+      const workers = parseInt(document.getElementById('admin-reg-workers').value) || 3;
+
+      if (!name || !stateVal || !city || !addr || !mgrName || !mgrAadhaar || !mgrPhone) {
+        alert('Please fill in all vendor and mandi fields.');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/v1/admin/vendors', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mandi_name: name,
+            state: stateVal,
+            city: city,
+            address: addr,
+            manager_name: mgrName,
+            manager_aadhaar: mgrAadhaar,
+            manager_phone: mgrPhone,
+            workers_count: workers,
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Vendor onboarding failed');
+
+        showGlobalAlert(`Mandi Centre "${name}" registered successfully! Manager login phone: ${mgrPhone}`, 'success');
+        document.getElementById('admin-reg-name').value = '';
+        document.getElementById('admin-reg-city').value = '';
+        document.getElementById('admin-reg-address').value = '';
+        document.getElementById('admin-reg-manager-name').value = '';
+        document.getElementById('admin-reg-manager-aadhaar').value = '';
+        document.getElementById('admin-reg-manager-phone').value = '';
+        loadAdminUsers();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function loadAdminUsers() {
+      try {
+        const res = await fetch('/api/v1/admin/users');
+        const users = await res.json();
+        const tbody = document.getElementById('admin-users-table-body');
+
+        if (!users || users.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" class="py-4 text-center text-gray-400">No users found.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = users.map(u => {
+          let roleCls = 'bg-green-100 text-green-800';
+          if (u.role === 'vendor') roleCls = 'bg-blue-100 text-blue-800';
+          if (u.role === 'admin') roleCls = 'bg-purple-100 text-purple-800';
+
+          const altContact = u.alt_person_name ? `${u.alt_person_name}` : '--';
+          const canDelete = u.phone !== '123456890' && u.phone !== '1234567890';
+          const deleteBtn = canDelete
+            ? `<button onclick="handleDeleteUser('${u.id}', '${u.full_name}', '${u.role}')" class="text-red-600 hover:text-red-800 font-bold underline">Delete</button>`
+            : '<span class="text-gray-400">Protected</span>';
+
+          return `
+            <tr class="hover:bg-gray-50 text-xs">
+              <td class="py-3 px-3 font-bold text-gray-900">${u.full_name}</td>
+              <td class="py-3 px-3 font-mono">${u.phone}</td>
+              <td class="py-3 px-3"><span class="badge ${roleCls}">${u.role.toUpperCase()}</span></td>
+              <td class="py-3 px-3 font-mono">${u.aadhaar_number || '--'}</td>
+              <td class="py-3 px-3">${altContact}</td>
+              <td class="py-3 px-3 text-center font-bold">${u.active_bookings}</td>
+              <td class="py-3 px-3 text-center text-gray-500">${u.total_bookings}</td>
+              <td class="py-3 px-3 text-right">${deleteBtn}</td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error('Failed to load admin users:', err);
+      }
+    }
+
+    async function handleDeleteUser(userId, name, role) {
+      if (!confirm(`Are you sure you want to permanently delete ${role} "${name}"? This action cannot be undone.`)) return;
+      try {
+        const res = await fetch(`/api/v1/admin/users/${userId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Delete failed');
+
+        showGlobalAlert(`${role.toUpperCase()} "${name}" deleted successfully`, 'success');
+        loadAdminUsers();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function loadAdminBookings() {
+      try {
+        const res = await fetch('/api/v1/admin/bookings');
+        const bookings = await res.json();
+        const tbody = document.getElementById('admin-bookings-table-body');
+
+        if (!bookings || bookings.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-gray-400">No bookings in system.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = bookings.map(b => `
+          <tr class="hover:bg-gray-50 text-xs">
+            <td class="py-3 px-3 font-mono font-bold text-indigo-700">${b.booking_code}</td>
+            <td class="py-3 px-3"><strong>${b.farmer_name}</strong> <span class="text-gray-400 block">${b.farmer_phone}</span></td>
+            <td class="py-3 px-3 font-semibold">${b.mandi_name} <span class="text-gray-400 font-normal">(${b.city})</span></td>
+            <td class="py-3 px-3">${b.slot_date} · <strong>${b.time_window}</strong></td>
+            <td class="py-3 px-3 font-bold">${b.estimated_weight} Qtl</td>
+            <td class="py-3 px-3"><span class="badge status-${b.status}">${b.status.toUpperCase()}</span></td>
+            <td class="py-3 px-3 text-right space-x-2">
+              <button onclick="openEditBookingModal('${b.booking_id}', '${b.booking_code}', ${b.estimated_weight}, '${b.status}')" class="text-blue-600 hover:text-blue-800 font-bold underline">Edit</button>
+              <button onclick="handleAdminDeleteBooking('${b.booking_id}', '${b.booking_code}')" class="text-red-600 hover:text-red-800 font-bold underline">Delete</button>
+            </td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('Failed to load admin bookings:', err);
+      }
+    }
+
+    function openEditBookingModal(id, code, weight, status) {
+      document.getElementById('edit-booking-id').value = id;
+      document.getElementById('edit-booking-modal-code').innerText = code;
+      document.getElementById('edit-booking-weight').value = weight;
+      document.getElementById('edit-booking-status').value = status;
+      document.getElementById('edit-booking-modal').classList.remove('hidden');
+    }
+
+    function closeEditBookingModal() {
+      document.getElementById('edit-booking-modal').classList.add('hidden');
+    }
+
+    async function submitEditBooking() {
+      const id = document.getElementById('edit-booking-id').value;
+      const weight = parseFloat(document.getElementById('edit-booking-weight').value);
+      const status = document.getElementById('edit-booking-status').value;
+
+      try {
+        const res = await fetch(`/api/v1/admin/bookings/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            estimated_weight_quintals: weight,
+            status: status
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Update failed');
+
+        closeEditBookingModal();
+        showGlobalAlert('Booking updated successfully', 'success');
+        loadAdminBookings();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function handleAdminDeleteBooking(id, code) {
+      if (!confirm(`Permanently delete booking ${code}?`)) return;
+      try {
+        const res = await fetch(`/api/v1/admin/bookings/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Delete failed');
+
+        showGlobalAlert(`Booking ${code} deleted`, 'info');
+        loadAdminBookings();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    window.onload = () => {
+      updateNavForUser();
+      if (state.currentUser) {
+        if (state.currentUser.role === 'admin') switchView('admin');
+        else if (state.currentUser.role === 'vendor') switchView('vendor');
+        else switchView('farmer');
+      } else {
+        switchView('farmer');
+      }
+    };
+  </script>
+</body>
+</html>

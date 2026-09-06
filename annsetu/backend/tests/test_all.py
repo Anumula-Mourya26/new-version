@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 from httpx import AsyncClient, ASGITransport
 from app.main import app
 from app.services.queue_engine import QueueEngine
@@ -7,189 +7,179 @@ from app.services.queue_engine import QueueEngine
 @pytest.mark.anyio
 async def test_health_check():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url='http://test') as client:
-        resp = await client.get('/api/v1/health')
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        resp = await client.get("/api/v1/health")
         assert resp.status_code == 200
         data = resp.json()
-        assert data['status'] == 'healthy'
-        assert data['app'] == 'AnnSetu'
+        assert data["status"] == "healthy"
+        assert data["app"] == "AnnSetu"
 
 
-def test_queue_engine_mmc_math():
-    # Position 1: 0 wait
-    assert QueueEngine.calculate_eta(position=1, active_counters=1, service_minutes_per_counter=20) == 0
-    # Position 2: 1 person * 20 min / 1 counter = 20 min
-    assert QueueEngine.calculate_eta(position=2, active_counters=1, service_minutes_per_counter=20) == 20
-    # Position 5: 4 ahead * 20 min / 1 counter = 80 min
-    assert QueueEngine.calculate_eta(position=5, active_counters=1, service_minutes_per_counter=20) == 80
+def test_kisanqueue_eta_formula():
+    # Case 1: Normal (F=1.0), C=2, N=4
+    # ceil(4 * 25 / (2 * 1.0)) = ceil(50.0) = 50
+    assert QueueEngine.calculate_kisanqueue_eta(n=4, c=2, f=1.0, status="NORMAL") == 50
 
-    # Multi-counter (c=2)
-    assert QueueEngine.calculate_eta(position=5, active_counters=2, service_minutes_per_counter=20) == 40
-    assert QueueEngine.calculate_eta(position=6, active_counters=2, service_minutes_per_counter=20) == 50
+    # Case 2: Busy (F=0.8), C=2, N=4
+    # raw = (4 * 25) / (2 * 0.8) = 100 / 1.6 = 62.5 -> ceil = 63
+    assert QueueEngine.calculate_kisanqueue_eta(n=4, c=2, f=0.8, status="BUSY") == 63
 
-    # High capacity (c=4)
-    assert QueueEngine.calculate_eta(position=9, active_counters=4, service_minutes_per_counter=20) == 40
+    # Case 3: Lifting Delayed (F=0.6), C=1, N=3
+    # raw = (3 * 25) / (1 * 0.6) = 75 / 0.6 = 125.0 -> ceil = 125
+    assert QueueEngine.calculate_kisanqueue_eta(n=3, c=1, f=0.6, status="LIFTING_DELAYED") == 125
+
+    # Case 4: Paused (F=0.0) -> None
+    assert QueueEngine.calculate_kisanqueue_eta(n=5, c=2, f=0.0, status="PAUSED") is None
+
+    # Case 5: N=0 (done/no wait) -> 0
+    assert QueueEngine.calculate_kisanqueue_eta(n=0, c=2, f=1.0) == 0
 
 
 @pytest.mark.anyio
-async def test_e2e_farmer_journey():
+async def test_auth_and_roles():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url='http://test') as client:
-        # 1. List centres
-        centres_res = await client.get('/api/v1/centres')
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # 1. Pre-existing Admin login via vendor section using phone '123456890'
+        admin_login = await client.post("/api/v1/auth/login", json={"phone": "123456890", "role": "vendor"})
+        assert admin_login.status_code == 200
+        assert admin_login.json()["role"] == "admin"
+
+        # 2. Farmer Signup with Alternate Person Details
+        signup_res = await client.post("/api/v1/auth/farmer/signup", json={
+            "phone": "9812345678",
+            "full_name": "Balwinder Singh",
+            "aadhaar_number": "789012345678",
+            "alt_person_name": "Manjit Kaur",
+            "alt_person_aadhaar": "890123456789",
+        })
+        assert signup_res.status_code == 200
+        farmer_auth = signup_res.json()
+        assert farmer_auth["role"] == "farmer"
+
+        # 3. Farmer Login
+        farmer_login = await client.post("/api/v1/auth/login", json={"phone": "9812345678", "role": "farmer"})
+        assert farmer_login.status_code == 200
+        assert farmer_login.json()["user_id"] == farmer_auth["user_id"]
+
+        # 4. Vendor Login without prior admin registration fails
+        unregistered_vendor = await client.post("/api/v1/auth/login", json={"phone": "9999999999", "role": "vendor"})
+        assert unregistered_vendor.status_code == 404
+        assert "Vendors must be registered by the District Admin" in unregistered_vendor.json()["detail"]
+
+
+@pytest.mark.anyio
+async def test_farmer_booking_and_arrival_journey():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # 1. Fetch centres filtered by State and City
+        centres_res = await client.get("/api/v1/centres?state=Punjab&city=Ludhiana")
         assert centres_res.status_code == 200
         centres = centres_res.json()
         assert len(centres) >= 1
-        c1 = centres[0]
-        c1_id = c1['id']
-        dist_id = c1['district_id']
+        c = centres[0]
 
-        # 2. List slots
-        slots_res = await client.get(f'/api/v1/centres/{c1_id}/slots')
+        # 2. Fetch 120-minute slots
+        slots_res = await client.get(f"/api/v1/centres/{c['id']}/slots")
         assert slots_res.status_code == 200
         slots = slots_res.json()
         assert len(slots) >= 1
         slot = slots[0]
-        slot_id = slot['id']
+        assert " - " in slot["time_window"]  # e.g., '08:00 - 10:00'
+        assert slot["capacity_units"] == 30   # Max 30 farmers cap
 
-        import random, uuid
-        test_suffix = str(random.randint(10000000, 99999999))
-        test_phone = f'+9198{test_suffix}'
-        test_aadhaar = f'AADHAAR-{test_suffix}'
-
-        # 3. Request and verify OTP
-        otp_req = await client.post('/api/v1/auth/otp/request', json={'phone': test_phone})
-        assert otp_req.status_code == 200
-
-        auth_res = await client.post('/api/v1/auth/otp/verify', json={'phone': test_phone, 'otp': '1234'})
-        assert auth_res.status_code == 200
-        token_data = auth_res.json()
-        user_id = token_data['user_id']
-
-        # 4. Register farmer profile
-        reg_res = await client.post('/api/v1/farmers', json={
-            'phone': test_phone,
-            'full_name': 'Test Farmer',
-            'aadhaar_ref': test_aadhaar,
-            'bank_account_ref': 'SBIN0001234',
-            'village': 'Test Village',
-            'district_id': dist_id,
-        })
-        assert reg_res.status_code == 200
-        farmer = reg_res.json()
-        farmer_id = farmer['id']
-
-        # 5. Book a slot
-        book_res = await client.post('/api/v1/bookings', json={
-            'farmer_id': farmer_id,
-            'slot_id': slot_id,
-            'declared_quantity_quintals': 50.0,
+        # 3. Book slot
+        book_res = await client.post("/api/v1/bookings", json={
+            "farmer_id": "farmer-demo-1",
+            "centre_id": c["id"],
+            "slot_id": slot["id"],
+            "estimated_weight_quintals": 42.5,
         })
         assert book_res.status_code == 200
         booking = book_res.json()
-        booking_code = booking['unique_booking_code']
-        assert booking_code.startswith('AS-')
+        assert booking["unique_booking_code"].startswith("AS-")
+        booking_code = booking["unique_booking_code"]
+        booking_id = booking["id"]
 
-        # 6. Gate check-in
-        checkin_res = await client.post('/api/v1/gate/check-in', json={
-            'booking_code': booking_code
+        # 4. Confirm arrival at location
+        arrival_res = await client.post("/api/v1/bookings/arrival-confirm", json={"booking_code": booking_code})
+        assert arrival_res.status_code == 200
+        arr_data = arrival_res.json()
+        assert arr_data["position"] >= 1
+        assert arr_data["eta_minutes"] is not None
+
+        # 5. View farmer booking history
+        history_res = await client.get("/api/v1/bookings/farmer/farmer-demo-1")
+        assert history_res.status_code == 200
+        history = history_res.json()
+        assert len(history) >= 2
+
+        # 6. Cancel booking
+        cancel_res = await client.delete(f"/api/v1/bookings/{booking_id}")
+        assert cancel_res.status_code == 200
+
+
+@pytest.mark.anyio
+async def test_vendor_and_admin_workflow():
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # 1. Vendor updates settings (C=4 workers, F=0.8 Busy)
+        v_update = await client.put("/api/v1/vendor/centre-khanna/settings", json={
+            "workers_count": 4,
+            "capacity_factor": 0.8,
+            "status": "BUSY",
         })
+        assert v_update.status_code == 200
+        assert v_update.json()["workers_count"] == 4
+
+        # 2. Vendor gets slot roster (max 30 cap)
+        roster_res = await client.get("/api/v1/vendor/centre-khanna/slots/roster")
+        assert roster_res.status_code == 200
+        roster = roster_res.json()
+        assert len(roster) >= 1
+        assert roster[0]["capacity_units"] == 30
+
+        # 3. Vendor check-in via QR / code
+        checkin_res = await client.post("/api/v1/vendor/scan-checkin", json={"booking_code": "AS-1047"})
         assert checkin_res.status_code == 200
-        checkin_data = checkin_res.json()
-        assert checkin_data['position'] >= 1
-        token_id = checkin_data['token_id']
+        assert checkin_res.json()["booking_code"] == "AS-1047"
 
-        # 7. Check live queue
-        q_res = await client.get(f'/api/v1/queue/{c1_id}/live')
-        assert q_res.status_code == 200
-        q_data = q_res.json()
-        assert q_data['total_waiting'] >= 1
-
-        # 8. Record procurement (Quality check + Weighbridge)
-        proc_res = await client.post('/api/v1/procurement', json={
-            'token_id': token_id,
-            'moisture_pct': 13.5,
-            'quality_result': 'accepted',
-            'weighed_quantity_quintals': 48.0,
+        # 4. Vendor records payment with proof upload
+        pay_res = await client.post("/api/v1/vendor/payment/submit", json={
+            "booking_id": "book-active-1",
+            "actual_weight_quintals": 51.0,
+            "amount_paid": 51.0 * 2320.00,
+            "payment_method": "dbt",
+            "proof_type": "transaction_id",
+            "proof_data": "PUNB9988776655",
         })
-        assert proc_res.status_code == 200
-        proc_data = proc_res.json()
-        assert proc_data['receipt_ref'].startswith('REC-AS-')
-        assert proc_data['amount_due'] == 48.0 * 2320.00
+        assert pay_res.status_code == 200
+        assert pay_res.json()["status"] == "success"
 
-        # 9. Verify Farmer Status Timeline
-        timeline_res = await client.get(f'/api/v1/farmers/{farmer_id}/status-timeline')
-        assert timeline_res.status_code == 200
-        timeline_data = timeline_res.json()
-        assert timeline_data['payment_stage'] == 'sold'
-        assert len(timeline_data['timeline']) == 4
+        # 5. Vendor views transactions
+        tx_res = await client.get("/api/v1/vendor/centre-khanna/transactions")
+        assert tx_res.status_code == 200
+        txs = tx_res.json()
+        assert len(txs) >= 1
 
-        # 10. District Congestion Check
-        dist_res = await client.get(f'/api/v1/district/{dist_id}/congestion')
-        assert dist_res.status_code == 200
-        dist_data = dist_res.json()
-        assert len(dist_data['centres']) >= 1
-
-@pytest.mark.anyio
-async def test_staged_payment_trust_timeline():
-    from app.core.db import AsyncSessionLocal
-    from app.models.entities import Payment
-    import uuid
-
-    # Create a fresh test payment in stage 'sold'
-    test_proc_id = str(uuid.uuid4())
-    async with AsyncSessionLocal() as session:
-        payment = Payment(
-            procurement_id=test_proc_id,
-            amount_due=116000.0,
-            payee_type='farmer_direct',
-            stage='sold',
-        )
-        session.add(payment)
-        await session.commit()
-        await session.refresh(payment)
-        payment_id = payment.id
-
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url='http://test') as client:
-        # Step 1 -> Step 2: advice_generated
-        p1 = await client.patch(f'/api/v1/payments/{payment_id}/stage', json={'stage': 'advice_generated'})
-        assert p1.status_code == 200
-        assert p1.json()['new_stage'] == 'advice_generated'
-
-        # Step 2 -> Step 3: advice_reached_agent
-        p2 = await client.patch(f'/api/v1/payments/{payment_id}/stage', json={'stage': 'advice_reached_agent'})
-        assert p2.status_code == 200
-        assert p2.json()['new_stage'] == 'advice_reached_agent'
-
-        # Step 3 -> Step 4: credited (with UTR)
-        p3 = await client.patch(f'/api/v1/payments/{payment_id}/stage', json={
-            'stage': 'credited',
-            'utr_ref': 'SBIN8899771122',
+        # 6. Admin onboards new vendor mandi
+        admin_create_vendor = await client.post("/api/v1/admin/vendors", json={
+            "mandi_name": "Amritsar Golden Mandi",
+            "state": "Punjab",
+            "city": "Amritsar",
+            "address": "Near Bypass Mandi Road, Amritsar",
+            "manager_name": "Simranjeet Singh",
+            "manager_aadhaar": "998877665544",
+            "manager_phone": "9876500099",
+            "workers_count": 3,
         })
-        assert p3.status_code == 200
-        assert p3.json()['new_stage'] == 'credited'
-        assert p3.json()['utr_ref'] == 'SBIN8899771122'
+        assert admin_create_vendor.status_code == 200
+        assert "registered successfully" in admin_create_vendor.json()["message"]
 
-        # Verify illegal backward transition fails
-        fail_res = await client.patch(f'/api/v1/payments/{payment_id}/stage', json={'stage': 'sold'})
-        assert fail_res.status_code == 400
-        assert 'Cannot transition backwards' in fail_res.json()['detail']
+        # 7. Admin lists users and views bookings
+        users_res = await client.get("/api/v1/admin/users")
+        assert users_res.status_code == 200
+        assert len(users_res.json()) >= 4
 
-
-@pytest.mark.anyio
-async def test_district_1click_redirect():
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url='http://test') as client:
-        dist_id = 'dist-punjab-ludhiana'
-        red_res = await client.post(f'/api/v1/district/{dist_id}/redirect', json={
-            'from_centre_id': 'centre-khanna',
-            'to_centre_id': 'centre-samrala',
-            'farmer_count': 15,
-        })
-        assert red_res.status_code == 200
-        res_data = red_res.json()
-        assert res_data['status'] == 'success'
-        assert res_data['redirected_count'] == 15
-        assert 'Khanna' in res_data['source_centre']
-        assert 'Samrala' in res_data['target_centre']
+        bookings_res = await client.get("/api/v1/admin/bookings")
+        assert bookings_res.status_code == 200
+        assert len(bookings_res.json()) >= 1

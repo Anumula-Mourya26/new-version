@@ -4,40 +4,37 @@ from sqlalchemy import select
 
 from app.core.db import get_db
 from app.core.config import get_settings
-from app.core.security import create_access_token, verify_password
+from app.core.security import create_access_token
 from app.models.entities import User
-from app.schemas.schemas import OTPRequest, OTPVerify, TokenResponse, OfficerLoginRequest
+from app.schemas.schemas import FarmerSignupRequest, LoginRequest, TokenResponse
 
 router = APIRouter(prefix='/auth', tags=['Authentication'])
 settings = get_settings()
 
 
-@router.post('/otp/request')
-async def request_otp(payload: OTPRequest):
-    # In demo/dev mode, mock OTP 1234 is accepted
-    return {
-        'status': 'success',
-        'message': f'OTP sent successfully to {payload.phone}',
-        'mock_otp': settings.OTP_MOCK_CODE if settings.OTP_MOCK_ENABLED else None,
-    }
+@router.post('/farmer/signup', response_model=TokenResponse)
+async def farmer_signup(payload: FarmerSignupRequest, db: AsyncSession = Depends(get_db)):
+    # Check if phone already registered
+    existing_phone = (await db.execute(select(User).where(User.phone == payload.phone))).scalar_one_or_none()
+    if existing_phone:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Phone number already registered. Please log in.')
 
+    # Check if aadhaar already registered
+    existing_aadhaar = (await db.execute(select(User).where(User.aadhaar_number == payload.aadhaar_number))).scalar_one_or_none()
+    if existing_aadhaar:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Aadhaar number already registered.')
 
-@router.post('/otp/verify', response_model=TokenResponse)
-async def verify_otp(payload: OTPVerify, db: AsyncSession = Depends(get_db)):
-    if settings.OTP_MOCK_ENABLED and payload.otp != settings.OTP_MOCK_CODE:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Invalid OTP')
-
-    # Look up or auto-provision farmer user
-    user = (await db.execute(select(User).where(User.phone == payload.phone))).scalar_one_or_none()
-    if not user:
-        user = User(
-            phone=payload.phone,
-            role='farmer',
-            full_name=f'Farmer {payload.phone[-4:]}',
-        )
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
+    user = User(
+        phone=payload.phone,
+        role='farmer',
+        full_name=payload.full_name,
+        aadhaar_number=payload.aadhaar_number,
+        alt_person_name=payload.alt_person_name,
+        alt_person_aadhaar=payload.alt_person_aadhaar,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
 
     token = create_access_token({'sub': user.id, 'role': user.role, 'phone': user.phone})
     return TokenResponse(
@@ -49,14 +46,53 @@ async def verify_otp(payload: OTPVerify, db: AsyncSession = Depends(get_db)):
     )
 
 
-@router.post('/officer/login', response_model=TokenResponse)
-async def officer_login(payload: OfficerLoginRequest, db: AsyncSession = Depends(get_db)):
-    user = (await db.execute(select(User).where(User.phone == payload.phone))).scalar_one_or_none()
-    if not user or user.role not in ['operator', 'district_admin', 'system_admin']:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid credentials or unauthorized role')
+@router.post('/login', response_model=TokenResponse)
+async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
+    clean_phone = payload.phone.strip()
 
-    if user.password_hash and not verify_password(payload.password, user.password_hash):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail='Invalid credentials')
+    # Pre-existing Admin login check
+    if payload.role == 'vendor' and clean_phone in ['123456890', '1234567890']:
+        # Look up or create the pre-existing admin
+        admin = (await db.execute(select(User).where(User.phone == clean_phone))).scalar_one_or_none()
+        if not admin:
+            admin = User(
+                phone=clean_phone,
+                role='admin',
+                full_name='District Mandi Administrator',
+            )
+            db.add(admin)
+            await db.commit()
+            await db.refresh(admin)
+
+        token = create_access_token({'sub': admin.id, 'role': 'admin', 'phone': admin.phone})
+        return TokenResponse(
+            access_token=token,
+            role='admin',
+            user_id=admin.id,
+            phone=admin.phone,
+            full_name=admin.full_name,
+        )
+
+    # General user lookup
+    user = (await db.execute(select(User).where(User.phone == clean_phone))).scalar_one_or_none()
+    if not user:
+        if payload.role == 'vendor':
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='Vendor not registered. Vendors must be registered by the District Admin.'
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='Farmer account not found. Please click Sign Up to register.'
+            )
+
+    # Verify role compatibility
+    if payload.role == 'vendor' and user.role not in ['vendor', 'admin']:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='Access denied. This phone number is not registered as a Mandi Vendor.'
+        )
 
     token = create_access_token({'sub': user.id, 'role': user.role, 'phone': user.phone})
     return TokenResponse(
@@ -65,4 +101,5 @@ async def officer_login(payload: OfficerLoginRequest, db: AsyncSession = Depends
         user_id=user.id,
         phone=user.phone,
         full_name=user.full_name,
+        centre_id=user.centre_id,
     )

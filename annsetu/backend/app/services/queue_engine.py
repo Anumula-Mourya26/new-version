@@ -2,61 +2,73 @@ import math
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, and_
+from sqlalchemy import select, and_
 
-from app.models.entities import Token, QueueState, Centre, Booking
+from app.models.entities import Booking, QueueState, Centre
 
 
 class QueueEngine:
-    # Baseline service duration: 20 minutes per farmer / tractor
-    DEFAULT_SERVICE_MINUTES = 20
+    T_BASE_MINUTES = 25  # KisanQueue baseline processing time per tractor/farmer
+    MIN_FACTOR = 0.05
 
-    @staticmethod
-    def calculate_eta(position: int, active_counters: int, service_minutes_per_counter: float = DEFAULT_SERVICE_MINUTES) -> int:
+    @classmethod
+    def calculate_kisanqueue_eta(
+        cls,
+        n: int,
+        c: int,
+        f: float,
+        status: str = 'NORMAL',
+        t_base: int = T_BASE_MINUTES
+    ) -> Optional[int]:
         """
-        M/M/c Queueing model closed-form calculation:
-        ETA = ceil( (position - 1) * (service_time / active_counters) )
+        KisanQueue Exact Formula:
+        ETA = ceil( (N * T_base) / (C * F) )
         """
-        if position <= 0:
+        if status == 'PAUSED' or f <= 0 or c <= 0:
+            return None  # Indeterminate wait time
+
+        if n <= 0:
             return 0
-        c = max(1, active_counters)
-        # Time for the (position-1) farmers ahead to clear across c counters
-        wait_time = math.ceil(((position - 1) * service_minutes_per_counter) / c)
-        return wait_time
+
+        effective_f = max(f, cls.MIN_FACTOR)
+        raw_minutes = (n * t_base) / (c * effective_f)
+        return math.ceil(raw_minutes)
 
     @classmethod
     async def recompute_centre_queue(cls, db: AsyncSession, centre_id: str) -> List[Dict[str, Any]]:
-        """
-        Recomputes live positions and ETAs for all waiting tokens in a procurement centre.
-        """
-        # 1. Fetch centre details (for weighing_points / counters c)
-        centre_res = await db.execute(select(Centre).where(Centre.id == centre_id))
-        centre = centre_res.scalar_one_or_none()
-        c = centre.weighing_points if centre else 2
+        # Fetch centre operational settings (C and F)
+        centre = (await db.execute(select(Centre).where(Centre.id == centre_id))).scalar_one_or_none()
+        if not centre:
+            return []
 
-        # 2. Fetch all waiting tokens ordered by issued_at (FIFO)
+        c = centre.workers_count
+        f = centre.capacity_factor
+        status = centre.status
+
+        # Fetch all waiting queue entries ordered by arrival
         stmt = (
-            select(Token, QueueState)
-            .join(QueueState, Token.id == QueueState.token_id)
-            .where(and_(Token.centre_id == centre_id, QueueState.status == 'waiting'))
-            .order_by(Token.issued_at.asc())
+            select(QueueState, Booking)
+            .join(Booking, Booking.id == QueueState.booking_id)
+            .where(and_(QueueState.centre_id == centre_id, QueueState.status == 'waiting'))
+            .order_by(QueueState.computed_at.asc())
         )
         results = (await db.execute(stmt)).all()
 
         updated_items = []
         now = datetime.now(timezone.utc)
 
-        for idx, (token, q_state) in enumerate(results, start=1):
-            eta = cls.calculate_eta(position=idx, active_counters=c)
+        for idx, (q_state, booking) in enumerate(results, start=1):
+            eta = cls.calculate_kisanqueue_eta(n=idx, c=c, f=f, status=status)
             q_state.position = idx
             q_state.eta_minutes = eta
             q_state.computed_at = now
 
             updated_items.append({
-                'token_id': token.id,
-                'token_number': token.token_number,
+                'booking_id': booking.id,
+                'booking_code': booking.unique_booking_code,
                 'position': idx,
                 'eta_minutes': eta,
+                'status': q_state.status,
             })
 
         await db.flush()

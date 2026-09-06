@@ -1,38 +1,35 @@
-﻿from contextlib import asynccontextmanager
+﻿import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from app.core.config import get_settings
 from app.core.db import init_db
 from app.api.v1.auth import router as auth_router
-from app.api.v1.farmers import router as farmers_router
 from app.api.v1.centres import router as centres_router
 from app.api.v1.bookings import router as bookings_router
-from app.api.v1.gate import router as gate_router
+from app.api.v1.vendor import router as vendor_router
+from app.api.v1.admin import router as admin_router
 from app.api.v1.queue import router as queue_router
-from app.api.v1.procurement import router as procurement_router
-from app.api.v1.payments import router as payments_router
-from app.api.v1.district import router as district_router
-from app.api.v1.analytics import router as analytics_router
 
 settings = get_settings()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize DB schemas on startup
     await init_db()
     yield
 
 
 app = FastAPI(
-    title=settings.APP_NAME,
+    title='AnnSetu — KisanQueue Edition',
     version=settings.APP_VERSION,
-    description='Live Gate & Queue Transparency Layer for MSP Procurement (SIH 2026 PS 26032)',
+    description='Mandi Queue Management, Real-Time ETA Engine & Transparent DBT Settlement',
     lifespan=lifespan,
 )
 
-# Configure CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -41,26 +38,27 @@ app.add_middleware(
     allow_headers=['*'],
 )
 
-# Mount API v1 Routers
-api_v1_prefix = '/api/v1'
-app.include_router(auth_router, prefix=api_v1_prefix)
-app.include_router(farmers_router, prefix=api_v1_prefix)
-app.include_router(centres_router, prefix=api_v1_prefix)
-app.include_router(bookings_router, prefix=api_v1_prefix)
-app.include_router(gate_router, prefix=api_v1_prefix)
-app.include_router(queue_router, prefix=api_v1_prefix)
-app.include_router(procurement_router, prefix=api_v1_prefix)
-app.include_router(payments_router, prefix=api_v1_prefix)
-app.include_router(district_router, prefix=api_v1_prefix)
-app.include_router(analytics_router, prefix=api_v1_prefix)
+# Mount Routers
+api_v1 = '/api/v1'
+app.include_router(auth_router, prefix=api_v1)
+app.include_router(centres_router, prefix=api_v1)
+app.include_router(bookings_router, prefix=api_v1)
+app.include_router(vendor_router, prefix=api_v1)
+app.include_router(admin_router, prefix=api_v1)
+app.include_router(queue_router, prefix=api_v1)
+
+static_dir = os.path.join(os.path.dirname(__file__), 'static')
+if os.path.exists(static_dir):
+    app.mount('/static', StaticFiles(directory=static_dir), name='static')
 
 
 @app.get('/')
 async def root():
+    index_path = os.path.join(static_dir, 'index.html')
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
     return {
-        'app': settings.APP_NAME,
-        'tagline': 'From slot booking to credited payout — live, honest MSP procurement',
-        'version': settings.APP_VERSION,
+        'app': 'AnnSetu',
         'status': 'online',
         'docs': '/docs',
     }
@@ -70,7 +68,7 @@ async def root():
 async def health_check():
     return {
         'status': 'healthy',
-        'app': settings.APP_NAME,
+        'app': 'AnnSetu',
         'version': settings.APP_VERSION,
         'environment': settings.APP_ENV,
     }

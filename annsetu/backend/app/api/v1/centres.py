@@ -1,53 +1,71 @@
 ﻿from typing import List, Optional
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
 
 from app.core.db import get_db
-from app.models.entities import Centre, Slot, QueueState, Token
+from app.models.entities import Centre, Slot, QueueState
 from app.schemas.schemas import CentreResponse, SlotResponse
 from app.services.queue_engine import QueueEngine
 
 router = APIRouter(prefix='/centres', tags=['Centres'])
 
 
+@router.get('/states-cities')
+async def get_states_and_cities(db: AsyncSession = Depends(get_db)):
+    centres = (await db.execute(select(Centre))).scalars().all()
+    mapping = {}
+    for c in centres:
+        if c.state not in mapping:
+            mapping[c.state] = set()
+        mapping[c.state].add(c.city)
+
+    return {state: sorted(list(cities)) for state, cities in mapping.items()}
+
+
 @router.get('', response_model=List[CentreResponse])
-async def list_centres(district_id: Optional[str] = None, db: AsyncSession = Depends(get_db)):
+async def list_centres(
+    state: Optional[str] = None,
+    city: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
     stmt = select(Centre)
-    if district_id:
-        stmt = stmt.where(Centre.district_id == district_id)
+    if state:
+        stmt = stmt.where(Centre.state == state)
+    if city:
+        stmt = stmt.where(Centre.city == city)
 
     centres = (await db.execute(stmt)).scalars().all()
     results = []
 
     for centre in centres:
-        # Count live waiting queue
-        waiting_count_stmt = (
-            select(func.count(QueueState.id))
-            .join(Token, Token.id == QueueState.token_id)
-            .where(and_(Token.centre_id == centre.id, QueueState.status == 'waiting'))
+        # Count live waiting queue (N)
+        waiting_stmt = select(func.count(QueueState.id)).where(
+            and_(QueueState.centre_id == centre.id, QueueState.status == 'waiting')
         )
-        waiting_count = (await db.execute(waiting_count_stmt)).scalar() or 0
+        waiting_count = (await db.execute(waiting_stmt)).scalar() or 0
 
-        # Load indicator
-        ratio = waiting_count / max(1, centre.daily_capacity_units)
-        load_status = 'red' if ratio >= 0.8 else ('amber' if ratio >= 0.5 else 'green')
-
-        # Live ETA for next arrival
-        eta = QueueEngine.calculate_eta(position=waiting_count + 1, active_counters=centre.weighing_points)
+        # KisanQueue ETA formula: ceil( (N * 25) / (C * F) )
+        eta = QueueEngine.calculate_kisanqueue_eta(
+            n=waiting_count + 1,
+            c=centre.workers_count,
+            f=centre.capacity_factor,
+            status=centre.status
+        )
 
         results.append(CentreResponse(
             id=centre.id,
             name=centre.name,
-            district_id=centre.district_id,
-            latitude=centre.latitude,
-            longitude=centre.longitude,
-            daily_capacity_units=centre.daily_capacity_units,
-            weighing_points=centre.weighing_points,
-            operating_hours=centre.operating_hours,
+            state=centre.state,
+            city=centre.city,
+            address=centre.address,
+            manager_name=centre.manager_name,
+            manager_phone=centre.manager_phone,
+            workers_count=centre.workers_count,
+            capacity_factor=centre.capacity_factor,
             status=centre.status,
             live_waiting_count=waiting_count,
-            load_status=load_status,
             current_eta_minutes=eta,
         ))
 
@@ -60,7 +78,37 @@ async def list_centre_slots(centre_id: str, db: AsyncSession = Depends(get_db)):
     if not centre:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Centre not found')
 
-    slots = (await db.execute(select(Slot).where(Slot.centre_id == centre_id))).scalars().all()
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    # Fetch slots for today onwards
+    stmt = (
+        select(Slot)
+        .where(and_(Slot.centre_id == centre_id, Slot.slot_date >= today_str))
+        .order_by(Slot.slot_date.asc(), Slot.time_window.asc())
+    )
+    slots = (await db.execute(stmt)).scalars().all()
+
+    # If no slots exist yet for today, auto-create standard 120-min windows
+    if not slots:
+        standard_windows = [
+            '08:00 - 10:00',
+            '10:00 - 12:00',
+            '12:00 - 14:00',
+            '14:00 - 16:00',
+            '16:00 - 18:00',
+        ]
+        slots = []
+        for win in standard_windows:
+            s = Slot(
+                centre_id=centre_id,
+                slot_date=today_str,
+                time_window=win,
+                capacity_units=30,  # Max 30 farmers per slot
+                booked_units=0,
+            )
+            db.add(s)
+            slots.append(s)
+        await db.commit()
+
     return [
         SlotResponse(
             id=slot.id,

@@ -1,220 +1,206 @@
 ﻿import asyncio
 import sys
 import os
+from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from datetime import datetime, timedelta, timezone
-from app.core.db import AsyncSessionLocal, init_db
-from app.models.entities import (
-    User, Farmer, Centre, Commodity, Slot, Booking, Token, QueueState, Procurement, Payment
-)
-from app.core.security import hash_password
+from sqlalchemy import select
+from app.core.db import AsyncSessionLocal, init_db, engine, Base
+from app.models.entities import User, Centre, Slot, Booking, QueueState, Transaction
+from app.services.queue_engine import QueueEngine
 
 
 async def seed():
-    print('Initializing database tables...')
-    await init_db()
+    print('Resetting and creating database schema...')
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
 
     async with AsyncSessionLocal() as db:
-        print('Seeding AnnSetu demo data...')
+        print('Seeding pre-existing Admin...')
+        # Pre-existing Admin required by user: Mobile 123456890
+        admin = User(
+            id='user-admin-1',
+            phone='123456890',
+            role='admin',
+            full_name='District Chief Mandi Administrator',
+        )
+        db.add(admin)
 
-        # 1. District & Mandi Centres
-        district_id = 'dist-punjab-ludhiana'
-
+        print('Seeding Mandi Centres with geographic hierarchy...')
+        # Mandi Centres
         c1 = Centre(
             id='centre-khanna',
             name='Khanna Grain Mandi (Central Hub)',
-            district_id=district_id,
-            latitude=30.7073,
-            longitude=76.2195,
-            daily_capacity_units=120,
-            weighing_points=3,  # 3 active weighbridges
-            operating_hours='08:00 - 18:00',
-            status='active',
+            state='Punjab',
+            city='Ludhiana',
+            address='G.T. Road, Near Grain Market Gate 1, Khanna',
+            manager_name='Gurpreet Singh',
+            manager_aadhaar='234567890123',
+            manager_phone='9876500001',
+            workers_count=3,        # C
+            capacity_factor=1.0,    # F
+            status='NORMAL',
         )
 
         c2 = Centre(
             id='centre-samrala',
             name='Samrala APMC Mandi',
-            district_id=district_id,
-            latitude=30.8358,
-            longitude=76.1917,
-            daily_capacity_units=80,
-            weighing_points=2,
-            operating_hours='08:00 - 18:00',
-            status='active',
+            state='Punjab',
+            city='Ludhiana',
+            address='Mandi Complex, Samrala Bypass',
+            manager_name='Harjit Brar',
+            manager_aadhaar='345678901234',
+            manager_phone='9876500002',
+            workers_count=2,        # C
+            capacity_factor=0.8,    # F (Busy)
+            status='BUSY',
         )
 
         c3 = Centre(
-            id='centre-sahnewal',
-            name='Sahnewal Procurement Centre',
-            district_id=district_id,
-            latitude=30.8444,
-            longitude=75.9867,
-            daily_capacity_units=60,
-            weighing_points=1,
-            operating_hours='08:00 - 18:00',
-            status='active',
+            id='centre-karnal',
+            name='Karnal Central Krishi Mandi',
+            state='Haryana',
+            city='Karnal',
+            address='National Highway 44, New Grain Market',
+            manager_name='Rajesh Kumar',
+            manager_aadhaar='456789012345',
+            manager_phone='9876500003',
+            workers_count=4,        # C
+            capacity_factor=1.0,    # F
+            status='NORMAL',
         )
 
-        db.add_all([c1, c2, c3])
-        await db.flush()
-
-        # 2. Commodity: Paddy (Dhan)
-        paddy = Commodity(
-            id='comm-paddy-2026',
-            name='Paddy (Grade A)',
-            season='kharif',
-            msp_per_quintal=2320.00,
-            moisture_threshold_pct=17.0,
-            procurement_window_start='2026-10-01',
-            procurement_window_end='2026-12-15',
+        c4 = Centre(
+            id='centre-indore',
+            name='Indore Krishi Upaj Mandi',
+            state='Madhya Pradesh',
+            city='Indore',
+            address='Laxmi Bai Nagar Mandi, Indore',
+            manager_name='Vikram Patel',
+            manager_aadhaar='567890123456',
+            manager_phone='9876500004',
+            workers_count=3,        # C
+            capacity_factor=1.0,    # F
+            status='NORMAL',
         )
-        db.add(paddy)
+
+        db.add_all([c1, c2, c3, c4])
         await db.flush()
 
-        # 3. Slots for each centre
+        # Seed Vendor Users for the Mandi Managers
+        v1 = User(id='vendor-1', phone='9876500001', role='vendor', full_name='Gurpreet Singh (Mandi Manager)', centre_id=c1.id, aadhaar_number='234567890123')
+        v2 = User(id='vendor-2', phone='9876500002', role='vendor', full_name='Harjit Brar (Mandi Manager)', centre_id=c2.id, aadhaar_number='345678901234')
+        v3 = User(id='vendor-3', phone='9876500003', role='vendor', full_name='Rajesh Kumar (Mandi Manager)', centre_id=c3.id, aadhaar_number='456789012345')
+        v4 = User(id='vendor-4', phone='9876500004', role='vendor', full_name='Vikram Patel (Mandi Manager)', centre_id=c4.id, aadhaar_number='567890123456')
+        db.add_all([v1, v2, v3, v4])
+        await db.flush()
+
+        # Seed 120-minute slots (8 AM to 6 PM) for each centre
         today_str = datetime.now().strftime('%Y-%m-%d')
-        slots = [
-            Slot(centre_id=c1.id, slot_date=today_str, time_window='09:00 - 11:00', capacity_units=25, booked_units=4),
-            Slot(centre_id=c1.id, slot_date=today_str, time_window='11:00 - 13:00', capacity_units=25, booked_units=2),
-            Slot(centre_id=c2.id, slot_date=today_str, time_window='09:00 - 11:00', capacity_units=20, booked_units=1),
-            Slot(centre_id=c2.id, slot_date=today_str, time_window='11:00 - 13:00', capacity_units=20, booked_units=0),
-            Slot(centre_id=c3.id, slot_date=today_str, time_window='09:00 - 11:00', capacity_units=15, booked_units=0),
+        windows = [
+            '08:00 - 10:00',
+            '10:00 - 12:00',
+            '12:00 - 14:00',
+            '14:00 - 16:00',
+            '16:00 - 18:00',
         ]
-        db.add_all(slots)
+
+        all_slots = []
+        for centre in [c1, c2, c3, c4]:
+            for win in windows:
+                all_slots.append(
+                    Slot(
+                        centre_id=centre.id,
+                        slot_date=today_str,
+                        time_window=win,
+                        capacity_units=30,  # Strict max 30 farmers per slot
+                        booked_units=0,
+                    )
+                )
+        db.add_all(all_slots)
         await db.flush()
 
-        # 4. Officer User
-        officer = User(
-            id='user-officer-1',
-            phone='+919876500001',
-            role='operator',
-            full_name='Gurpreet Singh (Mandi Inspector)',
-            centre_id=c1.id,
-            password_hash=hash_password('Demo@1234'),
-        )
-        db.add(officer)
-
-        # 5. Sample Farmers
-        f1_user = User(
-            id='user-farmer-1',
-            phone='+919876543210',
+        print('Seeding Farmer profile and sample bookings...')
+        # Farmer
+        farmer = User(
+            id='farmer-demo-1',
+            phone='9876543210',
             role='farmer',
             full_name='Harpreet Singh',
-            district_id=district_id,
+            aadhaar_number='123456789012',
+            alt_person_name='Kuldeep Singh (Brother)',
+            alt_person_aadhaar='987654321098',
         )
-        db.add(f1_user)
+        db.add(farmer)
         await db.flush()
 
-        farmer1 = Farmer(
-            id=f1_user.id,
-            aadhaar_ref='AADHAAR-TOKEN-908123',
-            bank_account_ref='PUNB0123456789',
-            village='Rattanheri',
-            district_id=district_id,
-            is_sharecropper=False,
-        )
-        db.add(farmer1)
+        # Active Booking #1 in Khanna Mandi (08:00 - 10:00)
+        target_slot = all_slots[0]
+        target_slot.booked_units += 1
 
-        # Booking & Token in Live Queue
         b1 = Booking(
-            id='book-101',
-            farmer_id=farmer1.id,
-            slot_id=slots[0].id,
-            declared_quantity_quintals=45.0,
-            status='checked_in',
+            id='book-active-1',
+            farmer_id=farmer.id,
+            centre_id=c1.id,
+            slot_id=target_slot.id,
+            estimated_weight_quintals=50.0,
             unique_booking_code='AS-1047',
+            qr_payload='ANNSETU:AS-1047:9876543210:50.0',
+            status='in_queue',
+            arrived_at=datetime.now(timezone.utc),
         )
         db.add(b1)
         await db.flush()
 
-        tok1 = Token(
-            id='tok-201',
-            booking_id=b1.id,
-            centre_id=c1.id,
-            token_number=1,
-            qr_payload='TOKEN:centre-khanna:1:AS-1047',
-        )
-        db.add(tok1)
-        await db.flush()
-
+        # Queue Entry with KisanQueue formula ETA
+        eta_1 = QueueEngine.calculate_kisanqueue_eta(n=1, c=c1.workers_count, f=c1.capacity_factor, status=c1.status)
         q1 = QueueState(
+            id='queue-1',
             centre_id=c1.id,
-            token_id=tok1.id,
+            booking_id=b1.id,
             position=1,
-            eta_minutes=0,
+            eta_minutes=eta_1,
             status='waiting',
         )
         db.add(q1)
 
-        # Farmer 2 with Completed Staged Payment
-        f2_user = User(
-            id='user-farmer-2',
-            phone='+919876543211',
-            role='farmer',
-            full_name='Jaswant Kaur',
-            district_id=district_id,
-        )
-        db.add(f2_user)
-        await db.flush()
-
-        farmer2 = Farmer(
-            id=f2_user.id,
-            aadhaar_ref='AADHAAR-TOKEN-908124',
-            bank_account_ref='SBIN0987654321',
-            village='Alour',
-            district_id=district_id,
-            is_sharecropper=False,
-        )
-        db.add(farmer2)
+        # Completed Historical Booking #2 with Payment & Proof
+        target_slot_2 = all_slots[1]
+        target_slot_2.booked_units += 1
 
         b2 = Booking(
-            id='book-102',
-            farmer_id=farmer2.id,
-            slot_id=slots[0].id,
-            declared_quantity_quintals=60.0,
+            id='book-past-2',
+            farmer_id=farmer.id,
+            centre_id=c1.id,
+            slot_id=target_slot_2.id,
+            estimated_weight_quintals=45.0,
+            unique_booking_code='AS-1012',
+            qr_payload='ANNSETU:AS-1012:9876543210:45.0',
             status='completed',
-            unique_booking_code='AS-1048',
+            arrived_at=datetime.now(timezone.utc),
         )
         db.add(b2)
         await db.flush()
 
-        tok2 = Token(
-            id='tok-202',
+        tx2 = Transaction(
+            id='tx-past-2',
             booking_id=b2.id,
             centre_id=c1.id,
-            token_number=2,
-            qr_payload='TOKEN:centre-khanna:2:AS-1048',
+            vendor_user_id=v1.id,
+            farmer_id=farmer.id,
+            actual_weight_quintals=46.5,
+            amount_paid=46.5 * 2320.00,  # ₹107,880
+            payment_method='dbt',
+            proof_type='transaction_id',
+            proof_data='SBIN004829104829',
+            status='credited',
         )
-        db.add(tok2)
-        await db.flush()
-
-        proc2 = Procurement(
-            id='proc-302',
-            token_id=tok2.id,
-            moisture_pct=14.2,
-            quality_result='accepted',
-            weighed_quantity_quintals=58.5,
-            inspector_user_id=officer.id,
-            receipt_ref='REC-AS-982145',
-        )
-        db.add(proc2)
-        await db.flush()
-
-        pay2 = Payment(
-            id='pay-402',
-            procurement_id=proc2.id,
-            amount_due=58.5 * 2320.00,  # 135,720 INR
-            payee_type='farmer_direct',
-            stage='advice_reached_agent',  # Stage 3 of 4
-            utr_ref='UTIB98213401',
-        )
-        db.add(pay2)
+        db.add(tx2)
 
         await db.commit()
-        print('Seed complete! Added 3 Mandi centres, Paddy MSP, slots, farmers, and sample queue entries.')
+        print('Seed complete! Created pre-existing Admin (123456890), 4 Mandis, 120-min slots (max 30 cap), Farmer, and Bookings.')
 
 
 if __name__ == '__main__':
