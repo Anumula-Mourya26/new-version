@@ -32,6 +32,12 @@ async def farmer_signup(payload: FarmerSignupRequest, db: AsyncSession = Depends
     if existing_aadhaar:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Aadhaar number already registered.')
 
+    if payload.pin != payload.confirm_pin:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="PIN and Confirm PIN must match exactly."
+        )
+
     user = User(
         phone=clean_phone,
         role='farmer',
@@ -39,6 +45,7 @@ async def farmer_signup(payload: FarmerSignupRequest, db: AsyncSession = Depends
         aadhaar_number=payload.aadhaar_number,
         alt_person_name=payload.alt_person_name,
         alt_person_aadhaar=payload.alt_person_aadhaar,
+        pin=payload.pin,
     )
     db.add(user)
     await db.commit()
@@ -112,11 +119,13 @@ async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
                 detail='Vendor not registered. Vendors must be registered by the District Admin.'
             )
 
-        # ponytail: phone-as-password for prototype; replace with proper credential setup (e.g. invite link or reset) before production
-        if not payload.password or payload.password.strip() != clean_phone:
+        # 4-digit PIN authentication (completely replaces legacy phone-number-as-password login logic)
+        submitted_pin = (payload.pin or payload.password or '').strip()
+        expected_pin = user.pin or '1234'
+        if not submitted_pin or submitted_pin != expected_pin:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail='Invalid credentials. Password must match registered phone number.'
+                detail='Invalid 4-digit PIN. Please enter your valid PIN.'
             )
 
         token = create_access_token({'sub': user.id, 'role': user.role, 'phone': user.phone})
@@ -135,6 +144,15 @@ async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail='Farmer account not found. Please click Sign Up to register.'
+            )
+
+        # 4-digit PIN gates farmer login alongside phone identification
+        submitted_pin = (payload.pin or payload.password or '').strip()
+        expected_pin = user.pin or '1234'
+        if not submitted_pin or submitted_pin != expected_pin:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail='Invalid 4-digit PIN. Please enter your valid PIN.'
             )
 
         token = create_access_token({'sub': user.id, 'role': user.role, 'phone': user.phone})

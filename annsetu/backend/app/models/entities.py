@@ -27,6 +27,7 @@ class User(Base):
     alt_person_name = Column(String(120), nullable=True)
     alt_person_aadhaar = Column(String(20), nullable=True)
     password_hash = Column(String(128), nullable=True)
+    pin = Column(String(10), nullable=True)
     centre_id = Column(String(36), nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=now_utc)

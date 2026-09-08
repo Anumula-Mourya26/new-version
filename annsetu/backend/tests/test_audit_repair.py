@@ -14,6 +14,8 @@ async def test_repair_farmer_signup_optional_fields():
             "phone": f"991{uid}",
             "full_name": "Ramesh Chander",
             "aadhaar_number": f"112233{uid}",
+            "pin": "1234",
+            "confirm_pin": "1234",
         })
         assert res.status_code == 200
         data = res.json()
@@ -150,6 +152,8 @@ async def test_repair_admin_delete_entities():
             "phone": f"980{uid}",
             "full_name": "Test Delete Farmer",
             "aadhaar_number": f"999888{uid}",
+            "pin": "1234",
+            "confirm_pin": "1234",
         })
         assert signup.status_code == 200
         del_user_id = signup.json()['user_id']

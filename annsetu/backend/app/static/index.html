@@ -1302,6 +1302,16 @@
                 <input type="text" id="admin-manager-aadhaar" placeholder="12-digit number" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none" />
               </div>
             </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Vendor 4-Digit PIN</label>
+                <input type="password" id="admin-vendor-pin" maxlength="4" pattern="\d{4}" inputmode="numeric" placeholder="Enter 4-digit PIN" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Confirm Vendor PIN</label>
+                <input type="password" id="admin-vendor-confirm-pin" maxlength="4" pattern="\d{4}" inputmode="numeric" placeholder="Confirm 4-digit PIN" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none" />
+              </div>
+            </div>
             <button type="submit" class="w-full bg-brand-navy hover:bg-slate-800 text-white font-extrabold text-sm py-3.5 rounded-xl shadow transition cursor-pointer flex items-center justify-center gap-2 mt-4">
               <span>➕</span> <span>Authorize & Register Mandi Centre</span>
             </button>
@@ -1548,6 +1558,10 @@
             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1" data-i18n="label_mobile">Mobile Number</label>
             <input type="tel" id="farmer-login-phone" oninput="clearAuthPhoneError()" placeholder="10-digit mobile number" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none" />
           </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">4-Digit Security PIN</label>
+            <input type="password" id="farmer-login-pin" maxlength="4" pattern="\d{4}" inputmode="numeric" placeholder="Enter 4-digit PIN" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none" />
+          </div>
 
           <button type="submit" id="farmer-login-submit-btn" class="w-full bg-brand-navy hover:bg-slate-800 text-white font-extrabold text-sm py-3 rounded-xl shadow transition cursor-pointer" data-i18n="btn_login">
             Sign In
@@ -1569,6 +1583,17 @@
             <label class="block text-xs font-bold text-slate-700 uppercase mb-1" data-i18n="label_aadhaar">Aadhaar Number (Farmer)</label>
             <input type="text" id="farmer-signup-aadhaar" placeholder="12-digit Aadhaar number" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-900" />
           </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Set 4-Digit PIN</label>
+              <input type="password" id="farmer-signup-pin" maxlength="4" pattern="\d{4}" inputmode="numeric" placeholder="4-digit PIN" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-900" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Confirm 4-Digit PIN</label>
+              <input type="password" id="farmer-signup-confirm-pin" maxlength="4" pattern="\d{4}" inputmode="numeric" placeholder="Confirm PIN" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-900" />
+            </div>
+          </div>
           
           <div class="border-t border-slate-200 pt-2 space-y-2">
             <span class="block text-[11px] font-bold text-slate-600 uppercase tracking-wider">👥 Alternate Representative (Optional)</span>
@@ -1587,7 +1612,7 @@
       <div id="auth-vendor-section" class="hidden space-y-4">
         <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 space-y-1">
           <p class="font-semibold text-slate-800">Authorized APMC Mandi Vendors</p>
-          <p>Sign in using your registered mobile number and password (password is your registered mobile number).</p>
+          <p>Sign in using your registered mobile number and 4-digit PIN.</p>
         </div>
 
         <form id="vendor-login-form" onsubmit="handleVendorLogin(event)" class="space-y-3.5">
@@ -1597,8 +1622,8 @@
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Password</label>
-            <input type="password" id="vendor-login-password" placeholder="Enter password (registered mobile number)" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none" />
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">4-Digit Security PIN</label>
+            <input type="password" id="vendor-login-password" maxlength="4" pattern="\d{4}" inputmode="numeric" placeholder="Enter 4-digit PIN" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none" />
           </div>
 
           <button type="submit" id="vendor-login-submit-btn" class="w-full bg-brand-navy hover:bg-slate-800 text-white font-extrabold text-sm py-3 rounded-xl shadow transition cursor-pointer" data-i18n="btn_login">
@@ -2201,8 +2226,14 @@
       const phone = validateIndianPhoneInput(raw);
       if (!phone) return;
 
+      const pin = (document.getElementById('farmer-login-pin')?.value || '').trim();
+      if (!/^\d{4}$/.test(pin)) {
+        showAuthModalError('Please enter a valid 4-digit security PIN.');
+        return;
+      }
+
       try {
-        const payload = { phone, role: 'farmer' };
+        const payload = { phone, role: 'farmer', pin };
         const res = await fetch('/api/v1/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -2231,6 +2262,18 @@
       if (!phone) return;
 
       const aadhaar_number = document.getElementById('farmer-signup-aadhaar').value.trim();
+      const pin = (document.getElementById('farmer-signup-pin')?.value || '').trim();
+      const confirm_pin = (document.getElementById('farmer-signup-confirm-pin')?.value || '').trim();
+
+      if (!/^\d{4}$/.test(pin)) {
+        showAuthModalError('PIN must be exactly 4 numeric digits.');
+        return;
+      }
+      if (pin !== confirm_pin) {
+        showAuthModalError('PIN and Confirm PIN do not match.');
+        return;
+      }
+
       const alt_person_name = document.getElementById('farmer-signup-alt-name').value.trim() || null;
       const alt_person_aadhaar = document.getElementById('farmer-signup-alt-aadhaar').value.trim() || null;
 
@@ -2239,6 +2282,8 @@
           full_name,
           phone,
           aadhaar_number,
+          pin,
+          confirm_pin,
           alt_person_name,
           alt_person_aadhaar
         };
@@ -2269,14 +2314,14 @@
       const phone = validateIndianPhoneInput(raw);
       if (!phone) return;
 
-      const password = document.getElementById('vendor-login-password').value.trim();
-      if (!password) {
-        showAuthModalError('Please enter your password (registered mobile number).');
+      const pin = (document.getElementById('vendor-login-password')?.value || '').trim();
+      if (!/^\d{4}$/.test(pin)) {
+        showAuthModalError('Please enter your 4-digit security PIN.');
         return;
       }
 
       try {
-        const payload = { phone, role: 'vendor', password };
+        const payload = { phone, role: 'vendor', pin };
 
         const res = await fetch('/api/v1/auth/login', {
           method: 'POST',
@@ -2285,7 +2330,7 @@
         });
         const data = await res.json();
         if (!res.ok) {
-          showAuthModalError(data.detail || 'Vendor sign in failed. Please check your registered number.');
+          showAuthModalError(data.detail || 'Vendor sign in failed. Please check your registered number and PIN.');
           return;
         }
         setSession(data);
@@ -3898,6 +3943,17 @@
       const manager_name = document.getElementById('admin-manager-name').value.trim();
       const manager_phone = document.getElementById('admin-manager-phone').value.trim();
       const manager_aadhaar = document.getElementById('admin-manager-aadhaar').value.trim();
+      const pin = (document.getElementById('admin-vendor-pin')?.value || '').trim();
+      const confirm_pin = (document.getElementById('admin-vendor-confirm-pin')?.value || '').trim();
+
+      if (!/^\d{4}$/.test(pin)) {
+        showGlobalAlert('Vendor PIN must be exactly 4 numeric digits.', 'error');
+        return;
+      }
+      if (pin !== confirm_pin) {
+        showGlobalAlert('Vendor PIN and Confirm PIN do not match.', 'error');
+        return;
+      }
 
       try {
         const res = await fetch('/api/v1/admin/vendors', {
@@ -3911,7 +3967,9 @@
             manager_name,
             manager_phone,
             manager_aadhaar,
-            workers_count: 3
+            workers_count: 3,
+            pin,
+            confirm_pin
           })
         });
         const data = await res.json();

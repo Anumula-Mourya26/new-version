@@ -8,6 +8,8 @@ class FarmerSignupRequest(BaseModel):
     phone: str
     full_name: str
     aadhaar_number: str
+    pin: str = Field(..., min_length=4, max_length=4, pattern=r"^\d{4}$")
+    confirm_pin: str = Field(..., min_length=4, max_length=4, pattern=r"^\d{4}$")
     alt_person_name: Optional[str] = None
     alt_person_aadhaar: Optional[str] = None
 
@@ -17,6 +19,7 @@ class LoginRequest(BaseModel):
     admin_id: Optional[str] = None
     role: str = 'farmer'  # farmer, vendor, or admin
     password: Optional[str] = None
+    pin: Optional[str] = None
 
 
 class TokenResponse(BaseModel):
@@ -191,6 +194,8 @@ class VendorCreateRequest(BaseModel):
     manager_aadhaar: str
     manager_phone: str
     workers_count: int = 3
+    pin: str = Field(..., min_length=4, max_length=4, pattern=r"^\d{4}$")
+    confirm_pin: str = Field(..., min_length=4, max_length=4, pattern=r"^\d{4}$")
 
 
 class BookingEditRequest(BaseModel):

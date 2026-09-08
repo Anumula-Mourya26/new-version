@@ -33,7 +33,7 @@ async def test_multi_crop_booking_and_sms():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Farmer login
-        login_res = await client.post("/api/v1/auth/login", json={"phone": "9876543210", "role": "farmer"})
+        login_res = await client.post("/api/v1/auth/login", json={"phone": "9876543210", "role": "farmer", "pin": "1234"})
         assert login_res.status_code == 200
         farmer_id = login_res.json()["user_id"]
 
@@ -152,7 +152,7 @@ async def test_vendor_multi_crop_payment():
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         # Farmer login and book
-        farmer_login = await client.post("/api/v1/auth/login", json={"phone": "9876543210", "role": "farmer"})
+        farmer_login = await client.post("/api/v1/auth/login", json={"phone": "9876543210", "role": "farmer", "pin": "1234"})
         farmer_id = farmer_login.json()["user_id"]
 
         slots_res = await client.get("/api/v1/centres/centre-samrala/slots")

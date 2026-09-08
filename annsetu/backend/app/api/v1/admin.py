@@ -16,6 +16,12 @@ router = APIRouter(prefix='/admin', tags=['Admin Console'])
 
 @router.post('/vendors')
 async def create_vendor_mandi(payload: VendorCreateRequest, db: AsyncSession = Depends(get_db)):
+    if payload.pin != payload.confirm_pin:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="PIN and Confirm PIN must match exactly."
+        )
+
     # 1. Create Centre record
     centre = Centre(
         name=payload.mandi_name,
@@ -41,11 +47,13 @@ async def create_vendor_mandi(payload: VendorCreateRequest, db: AsyncSession = D
             full_name=payload.manager_name,
             aadhaar_number=payload.manager_aadhaar,
             centre_id=centre.id,
+            pin=payload.pin,
         )
         db.add(vendor_user)
     else:
         vendor_user.role = 'vendor'
         vendor_user.centre_id = centre.id
+        vendor_user.pin = payload.pin
 
     # 3. Auto-populate standard 120-minute slots for today
     today_str = datetime.now().strftime('%Y-%m-%d')

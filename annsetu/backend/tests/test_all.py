@@ -48,11 +48,13 @@ async def test_auth_and_roles():
         bad_admin_id = await client.post("/api/v1/auth/login", json={"role": "admin", "admin_id": "999999999", "password": "123456789"})
         assert bad_admin_id.status_code == 401
 
-        # 2. Farmer Signup with Alternate Person Details
+        # 2. Farmer Signup with Alternate Person Details & 4-digit PIN
         signup_res = await client.post("/api/v1/auth/farmer/signup", json={
             "phone": "9812345678",
             "full_name": "Balwinder Singh",
             "aadhaar_number": "789012345678",
+            "pin": "4321",
+            "confirm_pin": "4321",
             "alt_person_name": "Manjit Kaur",
             "alt_person_aadhaar": "890123456789",
         })
@@ -60,8 +62,8 @@ async def test_auth_and_roles():
         farmer_auth = signup_res.json()
         assert farmer_auth["role"] == "farmer"
 
-        # 3. Farmer Login
-        farmer_login = await client.post("/api/v1/auth/login", json={"phone": "9812345678", "role": "farmer"})
+        # 3. Farmer Login with PIN
+        farmer_login = await client.post("/api/v1/auth/login", json={"phone": "9812345678", "role": "farmer", "pin": "4321"})
         assert farmer_login.status_code == 200
         assert farmer_login.json()["user_id"] == farmer_auth["user_id"]
 
@@ -182,6 +184,8 @@ async def test_vendor_and_admin_workflow():
             "manager_aadhaar": "998877665544",
             "manager_phone": "9876500099",
             "workers_count": 3,
+            "pin": "9876",
+            "confirm_pin": "9876",
         })
         assert admin_create_vendor.status_code == 200
         assert "registered successfully" in admin_create_vendor.json()["message"]

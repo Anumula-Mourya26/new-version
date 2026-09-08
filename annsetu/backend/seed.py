@@ -23,6 +23,20 @@ async def seed(force_reset: bool = False):
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
+    # Ensure pin column exists and backfill pre-existing farmers/vendors with default PIN 1234
+    async with engine.begin() as conn:
+        def migrate_users(sync_conn):
+            from sqlalchemy import inspect, text
+            inspector = inspect(sync_conn)
+            if 'users' in inspector.get_table_names():
+                cols = [c['name'] for c in inspector.get_columns('users')]
+                if 'pin' not in cols:
+                    sync_conn.execute(text("ALTER TABLE users ADD COLUMN pin VARCHAR(10)"))
+                sync_conn.execute(text(
+                    "UPDATE users SET pin = '1234' WHERE (pin IS NULL OR pin = '') AND role IN ('farmer', 'vendor')"
+                ))
+        await conn.run_sync(migrate_users)
+
     async with AsyncSessionLocal() as db:
         # 1. Admin check (preserve existing)
         admin = (await db.execute(select(User).where(or_(User.phone == '123456890', User.phone == '123457890', User.role == 'admin')))).scalars().first()
@@ -113,7 +127,7 @@ async def seed(force_reset: bool = False):
         for vid, vphone, vname, vcid, vaadhaar in vendor_configs:
             v_user = (await db.execute(select(User).where(User.phone == vphone))).scalar_one_or_none()
             if not v_user:
-                v_user = User(id=vid, phone=vphone, role='vendor', full_name=vname, centre_id=vcid, aadhaar_number=vaadhaar)
+                v_user = User(id=vid, phone=vphone, role='vendor', full_name=vname, centre_id=vcid, aadhaar_number=vaadhaar, pin='1234')
                 db.add(v_user)
             if vid == 'vendor-1':
                 v1 = v_user
@@ -178,6 +192,7 @@ async def seed(force_reset: bool = False):
                     aadhaar_number=faadhaar,
                     alt_person_name=falt_name,
                     alt_person_aadhaar=falt_aadhaar,
+                    pin='1234',
                 )
                 db.add(f_user)
             demo_farmers.append(f_user)
