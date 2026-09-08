@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timezone
+from datetime import datetime, timezone
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -143,7 +143,7 @@ async def scan_and_checkin(payload: VendorCheckinRequest, db: AsyncSession = Dep
         )).scalar() or 0
 
         position = waiting_count + 1
-        eta = QueueEngine.calculate_kisanqueue_eta(
+        eta = QueueEngine.calculate_eta(
             n=position, c=centre.workers_count, f=centre.capacity_factor, status=centre.status
         )
 

@@ -1,7 +1,13 @@
-﻿from functools import lru_cache
+from functools import lru_cache
 from typing import List, Union
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+import os
+
+_BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_DEFAULT_DB_PATH = os.path.join(_BACKEND_DIR, "annsetu.db").replace("\\", "/")
 
 
 class Settings(BaseSettings):
@@ -16,8 +22,8 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     APP_ENV: str = "development"
 
-    # Database: defaults to SQLite for zero-config local run, supports Postgres in production
-    DATABASE_URL: str = "sqlite+aiosqlite:///./annsetu.db"
+    # Database: defaults to persistent absolute SQLite, supports Postgres in production
+    DATABASE_URL: str = f"sqlite+aiosqlite:///{_DEFAULT_DB_PATH}"
 
     # Security
     JWT_SECRET_KEY: str = "annsetu-secret-key-for-sih26032-msp-queue-2026"

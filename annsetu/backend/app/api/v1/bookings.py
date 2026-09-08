@@ -110,7 +110,7 @@ async def confirm_arrival(payload: ArrivalConfirmRequest, db: AsyncSession = Dep
         )).scalar() or 0
 
         position = waiting_count + 1
-        eta = QueueEngine.calculate_kisanqueue_eta(
+        eta = QueueEngine.calculate_eta(
             n=position, c=centre.workers_count, f=centre.capacity_factor, status=centre.status
         )
 
@@ -194,6 +194,37 @@ async def get_farmer_bookings(farmer_id: str, db: AsyncSession = Depends(get_db)
     return results
 
 
+@router.get('/farmer/{farmer_id}/active', response_model=BookingDetailResponse)
+async def get_farmer_active_booking(farmer_id: str, db: AsyncSession = Depends(get_db)):
+    bookings = await get_farmer_bookings(farmer_id, db)
+    if not bookings:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='No bookings found')
+    # Find active: in_queue, arrived, or booked first, else most recent completed
+    for b in bookings:
+        if b.status in ['arrived', 'in_queue', 'booked']:
+            return b
+    # Return latest
+    return bookings[0]
+
+
+@router.get('/farmer/{farmer_id}/history', response_model=List[BookingDetailResponse])
+async def get_farmer_history(farmer_id: str, db: AsyncSession = Depends(get_db)):
+    return await get_farmer_bookings(farmer_id, db)
+
+
+@router.post('/{booking_id}/arrive')
+async def arrive_booking_by_id(booking_id: str, db: AsyncSession = Depends(get_db)):
+    booking = (await db.execute(select(Booking).where(Booking.id == booking_id))).scalar_one_or_none()
+    if not booking:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Booking not found')
+    return await confirm_arrival(ArrivalConfirmRequest(booking_code=booking.unique_booking_code), db)
+
+
+@router.post('/{booking_id}/cancel')
+async def cancel_booking_post(booking_id: str, db: AsyncSession = Depends(get_db)):
+    return await cancel_booking(booking_id, db)
+
+
 @router.delete('/{booking_id}')
 async def cancel_booking(booking_id: str, db: AsyncSession = Depends(get_db)):
     booking = (await db.execute(select(Booking).where(Booking.id == booking_id))).scalar_one_or_none()
@@ -222,3 +253,4 @@ async def cancel_booking(booking_id: str, db: AsyncSession = Depends(get_db)):
     await db.commit()
 
     return {'status': 'success', 'message': 'Booking cancelled successfully. Slot capacity released.'}
+

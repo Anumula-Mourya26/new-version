@@ -1,4 +1,4 @@
-﻿from typing import List, Optional
+from typing import List, Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -46,8 +46,8 @@ async def list_centres(
         )
         waiting_count = (await db.execute(waiting_stmt)).scalar() or 0
 
-        # KisanQueue ETA formula: ceil( (N * 25) / (C * F) )
-        eta = QueueEngine.calculate_kisanqueue_eta(
+        # AnnSetu dynamic ETA formula: ceil( (N * 25) / (C * F) )
+        eta = QueueEngine.calculate_eta(
             n=waiting_count + 1,
             c=centre.workers_count,
             f=centre.capacity_factor,

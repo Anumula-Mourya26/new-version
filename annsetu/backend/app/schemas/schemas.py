@@ -1,20 +1,52 @@
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, ConfigDict
+import re
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 
 # ── Auth ────────────────────────────────────────────────────────
 class FarmerSignupRequest(BaseModel):
-    phone: str = Field(..., pattern=r'^\+?[0-9]{10,13}$')
+    phone: str
     full_name: str
-    aadhaar_number: str = Field(..., min_length=12, max_length=16)
-    alt_person_name: str
-    alt_person_aadhaar: str = Field(..., min_length=12, max_length=16)
+    aadhaar_number: str
+    alt_person_name: Optional[str] = None
+    alt_person_aadhaar: Optional[str] = None
+
+    @field_validator('phone')
+    @classmethod
+    def clean_phone(cls, v: str) -> str:
+        clean = re.sub(r'[^0-9+]', '', v.strip())
+        if len(clean.replace('+', '')) < 8:
+            raise ValueError('Phone number must contain at least 8 digits')
+        return clean
+
+    @field_validator('aadhaar_number')
+    @classmethod
+    def clean_aadhaar(cls, v: str) -> str:
+        clean = re.sub(r'[^0-9]', '', v.strip())
+        if len(clean) < 10:
+            raise ValueError('Aadhaar number must contain at least 10-12 digits')
+        return clean
+
+    @field_validator('alt_person_aadhaar')
+    @classmethod
+    def clean_alt_aadhaar(cls, v: Optional[str]) -> Optional[str]:
+        if not v or not str(v).strip():
+            return None
+        clean = re.sub(r'[^0-9]', '', str(v).strip())
+        if len(clean) < 10:
+            raise ValueError('Alternate person Aadhaar must contain at least 10-12 digits')
+        return clean
 
 
 class LoginRequest(BaseModel):
     phone: str
     role: str = 'farmer'  # farmer or vendor
+
+    @field_validator('phone')
+    @classmethod
+    def clean_phone(cls, v: str) -> str:
+        return re.sub(r'[^0-9+]', '', v.strip())
 
 
 class TokenResponse(BaseModel):

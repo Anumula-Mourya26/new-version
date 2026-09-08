@@ -8,11 +8,11 @@ from app.models.entities import Booking, QueueState, Centre
 
 
 class QueueEngine:
-    T_BASE_MINUTES = 25  # KisanQueue baseline processing time per tractor/farmer
+    T_BASE_MINUTES = 25  # Baseline handling time per tractor/farmer
     MIN_FACTOR = 0.05
 
     @classmethod
-    def calculate_kisanqueue_eta(
+    def calculate_eta(
         cls,
         n: int,
         c: int,
@@ -21,7 +21,7 @@ class QueueEngine:
         t_base: int = T_BASE_MINUTES
     ) -> Optional[int]:
         """
-        KisanQueue Exact Formula:
+        AnnSetu Smart Queue Formula:
         ETA = ceil( (N * T_base) / (C * F) )
         """
         if status == 'PAUSED' or f <= 0 or c <= 0:
@@ -58,7 +58,7 @@ class QueueEngine:
         now = datetime.now(timezone.utc)
 
         for idx, (q_state, booking) in enumerate(results, start=1):
-            eta = cls.calculate_kisanqueue_eta(n=idx, c=c, f=f, status=status)
+            eta = cls.calculate_eta(n=idx, c=c, f=f, status=status)
             q_state.position = idx
             q_state.eta_minutes = eta
             q_state.computed_at = now

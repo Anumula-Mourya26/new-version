@@ -40,7 +40,7 @@ async def get_live_queue(centre_id: str, db: AsyncSession = Depends(get_db)):
     ]
 
     total_waiting = len(queue_items)
-    est_wait = QueueEngine.calculate_kisanqueue_eta(
+    est_wait = QueueEngine.calculate_eta(
         n=total_waiting,
         c=centre.workers_count,
         f=centre.capacity_factor,

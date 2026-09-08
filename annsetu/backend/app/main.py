@@ -1,4 +1,4 @@
-﻿import os
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title='AnnSetu — KisanQueue Edition',
+    title='AnnSetu — Smart Mandi Platform',
     version=settings.APP_VERSION,
     description='Mandi Queue Management, Real-Time ETA Engine & Transparent DBT Settlement',
     lifespan=lifespan,
