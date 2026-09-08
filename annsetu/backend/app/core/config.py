@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import List, Union
+from typing import List, Union, Optional
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -12,7 +12,7 @@ _DEFAULT_DB_PATH = os.path.join(_BACKEND_DIR, "annsetu.db").replace("\\", "/")
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env.example", ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     APP_ENV: str = "development"
 
-    # Database: defaults to persistent absolute SQLite, supports Postgres in production
+    # Database: defaults to static persistent SQLite in backend dir, supports Postgres in production
     DATABASE_URL: str = f"sqlite+aiosqlite:///{_DEFAULT_DB_PATH}"
 
     # Security
@@ -30,10 +30,6 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
 
-    # OTP simulation for testing & demo
-    OTP_MOCK_ENABLED: bool = True
-    OTP_MOCK_CODE: str = "1234"
-    OTP_EXPIRY_SECONDS: int = 300
 
     # CORS
     CORS_ORIGINS: Union[str, List[str]] = ["*"]

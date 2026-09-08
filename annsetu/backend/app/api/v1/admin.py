@@ -1,14 +1,15 @@
-﻿from typing import List, Optional
+from typing import List, Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, or_
 
 from app.core.db import get_db
-from app.models.entities import User, Centre, Slot, Booking, Transaction
+from app.models.entities import User, Centre, Slot, Booking, Transaction, QueueState
 from app.schemas.schemas import (
     VendorCreateRequest, BookingEditRequest, UserManagementItem
 )
+from app.services.queue_engine import QueueEngine
 
 router = APIRouter(prefix='/admin', tags=['Admin Console'])
 
@@ -109,14 +110,50 @@ async def delete_user_or_vendor(user_id: str, db: AsyncSession = Depends(get_db)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User not found')
 
-    if user.phone in ['123456890', '1234567890']:
+    if user.role == 'admin' or user.phone in ['123456890', '1234567890', '123457890']:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Cannot delete system pre-existing admin')
 
-    # If vendor is linked to a centre, remove centre association
+    # If farmer: clean up all bookings, queue states, and transactions
+    farmer_bookings = (await db.execute(select(Booking).where(Booking.farmer_id == user.id))).scalars().all()
+    for b in farmer_bookings:
+        slot = (await db.execute(select(Slot).where(Slot.id == b.slot_id))).scalar_one_or_none()
+        if slot and slot.booked_units > 0 and b.status in ['booked', 'arrived', 'in_queue']:
+            slot.booked_units -= 1
+
+        q_states = (await db.execute(select(QueueState).where(QueueState.booking_id == b.id))).scalars().all()
+        for qs in q_states:
+            await db.delete(qs)
+
+        txs = (await db.execute(select(Transaction).where(Transaction.booking_id == b.id))).scalars().all()
+        for tx in txs:
+            await db.delete(tx)
+
+        await db.delete(b)
+
+    # If vendor is linked to a centre, remove centre association and slots
     if user.centre_id:
         centre = (await db.execute(select(Centre).where(Centre.id == user.centre_id))).scalar_one_or_none()
         if centre:
+            c_bookings = (await db.execute(select(Booking).where(Booking.centre_id == centre.id))).scalars().all()
+            for cb in c_bookings:
+                cq_states = (await db.execute(select(QueueState).where(QueueState.booking_id == cb.id))).scalars().all()
+                for cqs in cq_states:
+                    await db.delete(cqs)
+                ctxs = (await db.execute(select(Transaction).where(Transaction.booking_id == cb.id))).scalars().all()
+                for ctx in ctxs:
+                    await db.delete(ctx)
+                await db.delete(cb)
+
+            c_slots = (await db.execute(select(Slot).where(Slot.centre_id == centre.id))).scalars().all()
+            for cs in c_slots:
+                await db.delete(cs)
+
             await db.delete(centre)
+
+    # Clean up any lingering transactions referencing this user
+    other_txs = (await db.execute(select(Transaction).where(or_(Transaction.farmer_id == user.id, Transaction.vendor_user_id == user.id)))).scalars().all()
+    for otx in other_txs:
+        await db.delete(otx)
 
     await db.delete(user)
     await db.commit()
@@ -137,15 +174,19 @@ async def list_all_bookings(db: AsyncSession = Depends(get_db)):
 
     return [
         {
+            'id': b.id,
             'booking_id': b.id,
+            'unique_booking_code': b.unique_booking_code,
             'booking_code': b.unique_booking_code,
             'farmer_name': u.full_name,
             'farmer_phone': u.phone,
+            'centre_name': c.name,
             'mandi_name': c.name,
             'state': c.state,
             'city': c.city,
             'slot_date': s.slot_date,
             'time_window': s.time_window,
+            'estimated_weight_quintals': b.estimated_weight_quintals,
             'estimated_weight': b.estimated_weight_quintals,
             'status': b.status,
             'booked_at': b.booked_at,
@@ -189,10 +230,28 @@ async def delete_booking(booking_id: str, db: AsyncSession = Depends(get_db)):
 
     # Release slot count
     slot = (await db.execute(select(Slot).where(Slot.id == booking.slot_id))).scalar_one_or_none()
-    if slot and slot.booked_units > 0:
+    if slot and slot.booked_units > 0 and booking.status in ['booked', 'arrived', 'in_queue']:
         slot.booked_units -= 1
 
+    # Delete associated QueueState
+    q_states = (await db.execute(select(QueueState).where(QueueState.booking_id == booking.id))).scalars().all()
+    for qs in q_states:
+        await db.delete(qs)
+
+    # Delete associated Transaction
+    txs = (await db.execute(select(Transaction).where(Transaction.booking_id == booking.id))).scalars().all()
+    for tx in txs:
+        await db.delete(tx)
+
+    centre_id = booking.centre_id
     await db.delete(booking)
     await db.commit()
+
+    # Recompute remaining queue if centre exists
+    try:
+        await QueueEngine.recompute_centre_queue(db, centre_id)
+        await db.commit()
+    except Exception:
+        pass
 
     return {'status': 'success', 'message': f'Booking {booking.unique_booking_code} deleted successfully.'}

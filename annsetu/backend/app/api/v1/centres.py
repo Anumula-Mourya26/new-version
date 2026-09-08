@@ -73,21 +73,24 @@ async def list_centres(
 
 
 @router.get('/{centre_id}/slots', response_model=List[SlotResponse])
-async def list_centre_slots(centre_id: str, db: AsyncSession = Depends(get_db)):
+async def list_centre_slots(
+    centre_id: str,
+    slot_date: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
     centre = (await db.execute(select(Centre).where(Centre.id == centre_id))).scalar_one_or_none()
     if not centre:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Centre not found')
 
-    today_str = datetime.now().strftime('%Y-%m-%d')
-    # Fetch slots for today onwards
+    target_date = slot_date or datetime.now().strftime('%Y-%m-%d')
     stmt = (
         select(Slot)
-        .where(and_(Slot.centre_id == centre_id, Slot.slot_date >= today_str))
-        .order_by(Slot.slot_date.asc(), Slot.time_window.asc())
+        .where(and_(Slot.centre_id == centre_id, Slot.slot_date == target_date))
+        .order_by(Slot.time_window.asc())
     )
     slots = (await db.execute(stmt)).scalars().all()
 
-    # If no slots exist yet for today, auto-create standard 120-min windows
+    # If no slots exist yet for target_date, auto-create standard 120-min windows
     if not slots:
         standard_windows = [
             '08:00 - 10:00',
@@ -100,7 +103,7 @@ async def list_centre_slots(centre_id: str, db: AsyncSession = Depends(get_db)):
         for win in standard_windows:
             s = Slot(
                 centre_id=centre_id,
-                slot_date=today_str,
+                slot_date=target_date,
                 time_window=win,
                 capacity_units=30,  # Max 30 farmers per slot
                 booked_units=0,
@@ -121,3 +124,4 @@ async def list_centre_slots(centre_id: str, db: AsyncSession = Depends(get_db)):
         )
         for slot in slots
     ]
+

@@ -8,7 +8,7 @@ from app.models.entities import Booking, QueueState, Centre
 
 
 class QueueEngine:
-    T_BASE_MINUTES = 25  # Baseline handling time per tractor/farmer
+    T_BASE_MINUTES = 25  # AnnSetu baseline processing time per tractor/farmer
     MIN_FACTOR = 0.05
 
     @classmethod
@@ -21,7 +21,7 @@ class QueueEngine:
         t_base: int = T_BASE_MINUTES
     ) -> Optional[int]:
         """
-        AnnSetu Smart Queue Formula:
+        AnnSetu Dynamic ETA Formula:
         ETA = ceil( (N * T_base) / (C * F) )
         """
         if status == 'PAUSED' or f <= 0 or c <= 0:

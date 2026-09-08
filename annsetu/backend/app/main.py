@@ -13,6 +13,8 @@ from app.api.v1.bookings import router as bookings_router
 from app.api.v1.vendor import router as vendor_router
 from app.api.v1.admin import router as admin_router
 from app.api.v1.queue import router as queue_router
+from app.api.v1.schedule import router as schedule_router
+from app.api.v1.analytics import router as analytics_router
 
 settings = get_settings()
 
@@ -20,11 +22,13 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    from seed import seed
+    await seed()
     yield
 
 
 app = FastAPI(
-    title='AnnSetu — Smart Mandi Platform',
+    title='AnnSetu — Transparent Mandi Procurement & Dynamic Queue Engine',
     version=settings.APP_VERSION,
     description='Mandi Queue Management, Real-Time ETA Engine & Transparent DBT Settlement',
     lifespan=lifespan,
@@ -46,6 +50,8 @@ app.include_router(bookings_router, prefix=api_v1)
 app.include_router(vendor_router, prefix=api_v1)
 app.include_router(admin_router, prefix=api_v1)
 app.include_router(queue_router, prefix=api_v1)
+app.include_router(schedule_router, prefix=api_v1)
+app.include_router(analytics_router, prefix=api_v1)
 
 static_dir = os.path.join(os.path.dirname(__file__), 'static')
 if os.path.exists(static_dir):

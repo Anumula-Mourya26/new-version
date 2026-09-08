@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AnnSetu — Smart Mandi Logistics & Dynamic Queue Platform</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -41,59 +42,76 @@
 <body class="bg-slate-50 text-slate-900 font-sans min-h-screen flex flex-col antialiased selection:bg-brand-accent selection:text-slate-950">
 
   <!-- ================= TOP HEADER ================= -->
-  <header class="bg-brand-navy text-white shadow-lg sticky top-0 z-40 border-b border-slate-800">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+  <header class="bg-brand-navy text-white shadow-xl sticky top-0 z-40 border-b border-slate-800 min-h-[76px] sm:min-h-[84px] flex items-center">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-2.5 flex items-center justify-between gap-4">
       
       <!-- Brand Logo -->
-      <div class="flex items-center space-x-3 cursor-pointer" onclick="goToHome()">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-accent to-brand-gold flex items-center justify-center text-2xl shadow-md shadow-brand-accent/20">
+      <div class="flex items-center space-x-3 cursor-pointer py-1" onclick="goToHome()">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-accent to-brand-gold flex items-center justify-center text-2xl sm:text-3xl shadow-md shadow-brand-accent/20">
           🌾
         </div>
         <div>
           <div class="flex items-center gap-2">
-            <span class="text-xl font-extrabold tracking-tight text-white">AnnSetu</span>
-            <span class="text-[10px] font-bold uppercase bg-brand-accent text-slate-950 px-2 py-0.5 rounded shadow-sm">MSP 2026</span>
+            <span class="text-xl sm:text-2xl font-black tracking-tight text-white">AnnSetu</span>
+            <span class="text-xs font-bold uppercase bg-brand-accent text-slate-950 px-2 py-0.5 rounded shadow-sm">MSP 2026</span>
           </div>
-          <p class="text-xs text-slate-300 font-medium" data-i18n="tagline">Smart Mandi Logistics · 120-min Slots · Real-Time Queue</p>
+          <p class="text-xs text-slate-300 font-medium hidden sm:block" data-i18n="tagline">Smart Mandi Logistics · 120-min Slots · Real-Time Queue</p>
         </div>
       </div>
 
-      <!-- Navigation Tabs (Only visible when logged in) -->
-      <div id="nav-tabs" class="hidden md:flex bg-slate-800/90 p-1 rounded-xl text-xs font-bold space-x-1 border border-slate-700">
-        <button onclick="switchView('farmer')" id="tab-farmer" class="px-3.5 py-1.5 rounded-lg text-slate-300 hover:text-white transition flex items-center gap-1.5" data-i18n="nav_farmer">
-          🚜 Farmer Portal
-        </button>
-        <button onclick="switchView('vendor')" id="tab-vendor" class="px-3.5 py-1.5 rounded-lg text-slate-300 hover:text-white transition flex items-center gap-1.5" data-i18n="nav_vendor">
-          ⚖️ Mandi Operations
-        </button>
-        <button onclick="switchView('admin')" id="tab-admin" class="px-3.5 py-1.5 rounded-lg text-slate-300 hover:text-white transition hidden flex items-center gap-1.5" data-i18n="nav_admin">
-          🏛️ District Admin
-        </button>
+      <!-- Single Context Header (Reflects current user's single relevant context, high legibility for farmers) -->
+      <div id="single-context-area" class="flex items-center">
+        <!-- Farmer Context Banner -->
+        <div id="context-banner-farmer" class="hidden flex items-center gap-3 px-4 sm:px-6 py-2 rounded-2xl bg-amber-500/20 border-2 border-amber-400 text-amber-300 shadow-md">
+          <span class="text-2xl sm:text-3xl">🚜</span>
+          <div>
+            <div class="text-base sm:text-xl font-black text-amber-300 tracking-tight leading-tight">किसान सेवा पोर्टल · Farmer Portal</div>
+            <div class="text-xs sm:text-sm font-bold text-amber-200/90">Mandi Gate Pass & Live Queue</div>
+          </div>
+        </div>
+        <!-- Vendor Context Banner -->
+        <div id="context-banner-vendor" class="hidden flex items-center gap-3 px-4 sm:px-6 py-2 rounded-2xl bg-blue-500/20 border-2 border-blue-400 text-white shadow-md">
+          <span class="text-2xl sm:text-3xl">⚖️</span>
+          <div>
+            <div class="text-base sm:text-xl font-black text-white tracking-tight leading-tight">मंडी परिचालन · Mandi Operations</div>
+            <div class="text-xs sm:text-sm font-bold text-blue-200">Gate Verification & DBT Settlement</div>
+          </div>
+        </div>
+        <!-- Admin Context Banner -->
+        <div id="context-banner-admin" class="hidden flex items-center gap-3 px-4 sm:px-6 py-2 rounded-2xl bg-purple-500/20 border-2 border-purple-400 text-white shadow-md">
+          <span class="text-2xl sm:text-3xl">🏛️</span>
+          <div>
+            <div class="text-base sm:text-xl font-black text-white tracking-tight leading-tight">जिला प्रशासन · District Command</div>
+            <div class="text-xs sm:text-sm font-bold text-purple-200">Mandi Governance & Audit Ledger</div>
+          </div>
+        </div>
       </div>
 
-      <!-- Right Controls: Language & Session -->
+      <!-- Right Controls: Language & Session (Large Accessible Touch Targets >= 48px) -->
       <div class="flex items-center space-x-3">
-        <!-- Language Switcher Dropdown -->
+        <!-- Language Switcher Dropdown (48px height) -->
         <div class="relative">
-          <select id="lang-switcher" onchange="changeLanguage(this.value)" class="bg-slate-800 text-white text-xs font-bold py-1.5 px-3 rounded-lg border border-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-accent cursor-pointer">
+          <select id="lang-switcher" onchange="changeLanguage(this.value)" class="bg-slate-800 hover:bg-slate-700 text-white text-xs sm:text-sm font-bold min-h-[48px] py-2.5 px-3 sm:px-4 rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-accent cursor-pointer shadow-sm">
             <option value="en">🇬🇧 English</option>
             <option value="te">🇮🇳 తెలుగు (Telugu)</option>
             <option value="hi">🇮🇳 हिन्दी (Hindi)</option>
           </select>
         </div>
 
-        <!-- User Session Badge -->
-        <div id="user-badge" class="hidden flex items-center space-x-2 bg-slate-800/90 px-3 py-1.5 rounded-full text-xs border border-slate-700">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span id="user-name-display" class="font-bold text-white max-w-[120px] truncate">--</span>
-          <span id="user-role-display" class="bg-brand-blue text-white px-2 py-0.5 rounded text-[10px] uppercase font-bold">FARMER</span>
-          <button onclick="handleLogout()" class="text-rose-400 hover:text-rose-200 ml-1 font-bold underline cursor-pointer" data-i18n="logout">Logout</button>
+        <!-- User Session Badge (48px height) -->
+        <div id="user-badge" class="hidden flex items-center space-x-2.5 bg-slate-800/90 min-h-[48px] px-3.5 sm:px-4 py-2 rounded-2xl text-xs sm:text-sm border border-slate-700 shadow-sm">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="user-name-display" class="font-extrabold text-white max-w-[130px] truncate">--</span>
+          <span id="user-role-display" class="bg-brand-blue text-white px-2 py-1 rounded text-[11px] uppercase font-bold">FARMER</span>
+          <button onclick="handleLogout()" class="min-h-[40px] px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white font-bold transition cursor-pointer text-xs ml-1 flex items-center gap-1" data-i18n="logout">
+            🚪 Logout
+          </button>
         </div>
 
-        <!-- Sign In Button (when not authenticated) -->
+        <!-- Sign In Button (when not authenticated, 48px height) -->
         <div id="auth-btn-container">
-          <button onclick="openAuthModal('farmer')" class="bg-brand-accent hover:bg-brand-gold text-slate-950 font-extrabold text-xs px-4 py-2 rounded-lg shadow-sm hover:shadow transition cursor-pointer" data-i18n="sign_in">
-            Sign In / Register
+          <button onclick="openAuthModal('farmer')" class="min-h-[48px] bg-brand-accent hover:bg-brand-gold text-slate-950 font-black text-xs sm:text-sm px-5 sm:px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition cursor-pointer flex items-center gap-2" data-i18n="sign_in">
+            <span>🔐</span> <span>Sign In / Register</span>
           </button>
         </div>
       </div>
@@ -112,11 +130,92 @@
     </div>
   </div>
 
-  <!-- ================= MAIN CONTENT ================= -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
+  <!-- ================= BOOKING SUCCESS TOAST ================= -->
+  <div id="booking-success-toast" class="hidden fixed top-24 right-6 z-50 bg-emerald-700 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-emerald-500 transition-all duration-300">
+    <span class="text-2xl">🎉</span>
+    <div>
+      <div class="font-black text-sm">Booking Successful!</div>
+      <div id="booking-success-toast-msg" class="text-xs text-emerald-100">Your mandi slot has been confirmed and SMS sent.</div>
+    </div>
+    <button onclick="closeBookingSuccessToast()" class="ml-3 text-emerald-200 hover:text-white font-bold text-sm">✕</button>
+  </div>
 
-    <!-- HERO SECTION (Shown when not logged in) -->
-    <section id="view-hero" class="py-12 md:py-16 text-center max-w-4xl mx-auto">
+  <!-- ================= APP SHELL (PERSISTENT LEFT SIDEBAR + CONTENT) ================= -->
+  <div id="app-shell" class="flex-1 flex flex-col md:flex-row w-full min-h-[calc(100vh-84px)]">
+    
+    <!-- PERSISTENT LEFT SIDEBAR (Standard Web App Pattern) -->
+    <aside id="app-sidebar" class="hidden w-full md:w-64 lg:w-72 bg-slate-900 text-white border-r border-slate-800 flex-shrink-0 flex flex-col justify-between md:sticky md:top-[76px] sm:md:top-[84px] md:h-[calc(100vh-84px)] z-30">
+      
+      <!-- Top Profile Widget in Sidebar -->
+      <div class="p-5 border-b border-slate-800 flex items-center gap-3.5 bg-slate-950/40">
+        <div id="sidebar-role-icon" class="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-2xl flex-shrink-0 shadow-inner">
+          🚜
+        </div>
+        <div class="overflow-hidden flex-1">
+          <div id="sidebar-user-name" class="font-extrabold text-white text-sm truncate">--</div>
+          <div id="sidebar-role-badge" class="text-[10px] font-black text-amber-400 uppercase tracking-wider mt-0.5">FARMER PORTAL</div>
+          <div id="sidebar-user-phone" class="text-[11px] text-slate-400 font-mono truncate"></div>
+        </div>
+      </div>
+
+      <!-- Navigation Links for Active Role -->
+      <nav class="p-4 space-y-2 flex-1 overflow-y-auto">
+        <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-3 py-1">SECTIONS</div>
+
+        <!-- 1. Farmer Sub-view Nav Items -->
+        <div id="nav-farmer-group" class="space-y-1.5">
+          <button onclick="switchRoleSubView('farmer', 'dashboard')" id="nav-farmer-dashboard" class="sidebar-nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-extrabold bg-brand-blue text-white shadow-md border-l-4 border-amber-400 transition cursor-pointer">
+            <span class="text-base">📊</span> <span>Dashboard</span>
+          </button>
+          <button onclick="switchRoleSubView('farmer', 'history')" id="nav-farmer-history" class="sidebar-nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition cursor-pointer">
+            <span class="text-base">📜</span> <span>History</span>
+          </button>
+          <button onclick="switchRoleSubView('farmer', 'profile')" id="nav-farmer-profile" class="sidebar-nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition cursor-pointer">
+            <span class="text-base">👤</span> <span>Profile</span>
+          </button>
+        </div>
+
+        <!-- 2. Vendor Sub-view Nav Items -->
+        <div id="nav-vendor-group" class="hidden space-y-1.5">
+          <button onclick="switchRoleSubView('vendor', 'dashboard')" id="nav-vendor-dashboard" class="sidebar-nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-extrabold bg-brand-blue text-white shadow-md border-l-4 border-amber-400 transition cursor-pointer">
+            <span class="text-base">📊</span> <span>Dashboard</span>
+          </button>
+          <button onclick="switchRoleSubView('vendor', 'statistics')" id="nav-vendor-statistics" class="sidebar-nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition cursor-pointer">
+            <span class="text-base">📈</span> <span>Statistics</span>
+          </button>
+          <button onclick="switchRoleSubView('vendor', 'profile')" id="nav-vendor-profile" class="sidebar-nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition cursor-pointer">
+            <span class="text-base">👤</span> <span>Profile</span>
+          </button>
+        </div>
+
+        <!-- 3. Admin Sub-view Nav Items -->
+        <div id="nav-admin-group" class="hidden space-y-1.5">
+          <button onclick="switchRoleSubView('admin', 'dashboard')" id="nav-admin-dashboard" class="sidebar-nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-extrabold bg-brand-blue text-white shadow-md border-l-4 border-amber-400 transition cursor-pointer">
+            <span class="text-base">📊</span> <span>Dashboard</span>
+          </button>
+          <button onclick="switchRoleSubView('admin', 'add-vendor')" id="nav-admin-add-vendor" class="sidebar-nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition cursor-pointer">
+            <span class="text-base">➕</span> <span>Add Vendor</span>
+          </button>
+          <button onclick="switchRoleSubView('admin', 'delete-user')" id="nav-admin-delete-user" class="sidebar-nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition cursor-pointer">
+            <span class="text-base">🗑️</span> <span>Delete User</span>
+          </button>
+        </div>
+      </nav>
+
+      <!-- Sidebar Bottom Action -->
+      <div class="p-4 border-t border-slate-800 bg-slate-950/20">
+        <button onclick="handleLogout()" class="w-full min-h-[44px] flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500 text-rose-300 hover:text-white text-xs font-extrabold transition cursor-pointer">
+          <span>🚪</span> <span>Sign Out</span>
+        </button>
+      </div>
+
+    </aside>
+
+    <!-- ================= MAIN SCROLLABLE CONTENT ================= -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full overflow-y-auto">
+
+      <!-- HERO SECTION (Shown when not logged in) -->
+      <section id="view-hero" class="py-12 md:py-16 text-center max-w-4xl mx-auto">
       <div class="inline-flex items-center gap-2 bg-brand-blue/10 text-brand-blue text-xs font-bold px-3 py-1.5 rounded-full mb-6 border border-brand-blue/20">
         <span>🛡️</span> Government of India · APMC Smart Mandi Settlement Platform
       </div>
@@ -159,7 +258,10 @@
     <!-- ================= FARMER VIEW ================= -->
     <section id="view-farmer" class="hidden space-y-8">
       
-      <!-- Top Bar Greeting & Status Summary -->
+      <!-- ================= FARMER SUB-VIEW 1: DASHBOARD ================= -->
+      <div id="farmer-subview-dashboard" class="space-y-8">
+
+        <!-- Top Bar Greeting & Status Summary -->
       <div class="bg-gradient-to-r from-brand-navy to-brand-blue text-white rounded-2xl p-6 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 class="text-2xl font-black flex items-center gap-2">
@@ -240,12 +342,36 @@
               <p class="text-[11px] text-slate-500 mt-1" data-i18n="slot_hint">Operating hours: 08:00 to 18:00 (5 daily slots of 2 hours each).</p>
             </div>
 
-            <!-- Estimated Weight -->
-            <div>
-              <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5" data-i18n="label_weight">Estimated Produce Weight (Quintals)</label>
-              <div class="relative">
-                <input type="number" id="book-weight" min="1" max="1000" step="0.5" placeholder="e.g. 45" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none pr-16" />
-                <span class="absolute right-3.5 top-2.5 text-xs font-bold text-slate-500">Quintals</span>
+            <!-- Multi-Crop Selection & Real-Time MSP Valuation -->
+            <div class="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+              <div class="flex items-center justify-between">
+                <div>
+                  <label class="block text-xs font-black text-slate-800 uppercase tracking-wider">
+                    🌾 Produce Crops & Weight
+                  </label>
+                  <span class="text-[11px] text-slate-500 font-medium">Select multiple crops for a single booking</span>
+                </div>
+                <button type="button" onclick="addCropRow()" class="min-h-[36px] bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-black px-3 py-1.5 rounded-xl shadow-sm transition flex items-center gap-1 cursor-pointer">
+                  <span>+</span> Add Crop
+                </button>
+              </div>
+
+              <!-- Crop Rows Container -->
+              <div id="booking-crops-list" class="space-y-2.5">
+                <!-- Dynamically populated rows -->
+              </div>
+
+              <!-- Live Multi-Crop Calculation Deck -->
+              <div class="grid grid-cols-2 gap-2.5 pt-2 border-t border-slate-200 text-xs">
+                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                  <span class="text-slate-500 font-bold block text-[11px]">Total Produce:</span>
+                  <span id="booking-total-weight-display" class="text-lg font-black text-slate-900">0.0 Q</span>
+                  <input type="hidden" id="book-weight" value="0" />
+                </div>
+                <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
+                  <span class="text-slate-500 font-bold block text-[11px]">Est. MSP Payout:</span>
+                  <span id="booking-total-value-display" class="text-lg font-black text-emerald-700">₹ 0</span>
+                </div>
               </div>
             </div>
 
@@ -293,7 +419,12 @@
                     <span>⏰ <span id="pass-slot">--</span></span>
                   </div>
                   <div class="text-xs text-slate-600">
-                    <span>⚖️ Estimated: <span id="pass-weight" class="font-bold text-slate-900">--</span> Quintals</span>
+                    <span>⚖️ Total Produce: <span id="pass-weight" class="font-bold text-slate-900">--</span> Quintals</span>
+                  </div>
+                  <!-- Multi-crop breakdown -->
+                  <div id="pass-crops-summary" class="text-xs text-slate-700 bg-white/80 p-2 rounded-lg border border-slate-200 mt-1 space-y-0.5">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block">Crops Breakdown:</span>
+                    <div id="pass-crops-items" class="font-semibold text-slate-800">--</div>
                   </div>
                 </div>
 
@@ -306,6 +437,23 @@
                 </div>
               </div>
 
+              <!-- SMS Confirmation Notification Banner -->
+              <div id="pass-sms-status-card" class="bg-blue-50/90 border border-blue-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-xl">📱</div>
+                  <div>
+                    <div class="font-black text-slate-900 flex items-center gap-2">
+                      <span>SMS Confirmation:</span>
+                      <span id="pass-sms-badge" class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800">SENT</span>
+                    </div>
+                    <p id="pass-sms-recipient" class="text-slate-600 text-[11px] mt-0.5">Dispatched to registered mobile</p>
+                  </div>
+                </div>
+                <button type="button" onclick="handleResendSMS()" class="min-h-[40px] bg-white hover:bg-slate-100 text-brand-blue border border-brand-blue/40 font-bold px-4 py-2 rounded-xl shadow-sm transition text-xs flex items-center justify-center gap-1.5 cursor-pointer">
+                  <span>🔄</span> Resend SMS
+                </button>
+              </div>
+
               <!-- DYNAMIC QUEUE & ETA ENGINE CARD -->
               <div id="dynamic-queue-card" class="bg-gradient-to-br from-slate-900 to-brand-navy text-white rounded-2xl p-6 shadow-md space-y-4">
                 <div class="flex items-center justify-between">
@@ -316,27 +464,18 @@
                   <span id="queue-status-tag" class="text-xs font-bold bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full">CALCULATING</span>
                 </div>
 
-                <!-- Queue Formula Display -->
-                <div class="bg-slate-800/80 rounded-xl p-3 text-[11px] font-mono border border-slate-700 text-slate-300">
-                  <div class="flex justify-between items-center">
-                    <span>Formula: ETA = ⌈ (P × 40) / (C × F) ⌉ mins</span>
-                    <span class="text-amber-300 font-bold">Dynamic</span>
-                  </div>
-                  <div class="text-[10px] text-slate-400 mt-1">P = Position in line · C = Active Workers · F = Operational Factor</div>
-                </div>
-
-                <!-- Numbers Grid -->
+                <!-- Queue Metrics Grid -->
                 <div class="grid grid-cols-3 gap-3 text-center">
                   <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700">
-                    <div class="text-[10px] font-bold text-slate-400 uppercase" data-i18n="queue_pos">Position (P)</div>
+                    <div class="text-[10px] font-bold text-slate-400 uppercase" data-i18n="queue_pos">Queue Position</div>
                     <div id="queue-pos-val" class="text-2xl font-black text-amber-400 mt-0.5">--</div>
                   </div>
                   <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700">
-                    <div class="text-[10px] font-bold text-slate-400 uppercase" data-i18n="workers_active">Workers (C)</div>
+                    <div class="text-[10px] font-bold text-slate-400 uppercase" data-i18n="workers_active">Active Counters</div>
                     <div id="queue-workers-val" class="text-2xl font-black text-white mt-0.5">--</div>
                   </div>
                   <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700">
-                    <div class="text-[10px] font-bold text-slate-400 uppercase" data-i18n="factor_f">Factor (F)</div>
+                    <div class="text-[10px] font-bold text-slate-400 uppercase" data-i18n="factor_f">Pace Factor</div>
                     <div id="queue-factor-val" class="text-2xl font-black text-white mt-0.5">--</div>
                   </div>
                 </div>
@@ -386,6 +525,15 @@
                     <div id="pay-card-utr" class="font-mono font-bold text-slate-900 text-xs">--</div>
                   </div>
                 </div>
+
+                <!-- Receipt Image Container -->
+                <div id="pay-card-receipt-wrap" class="hidden bg-white p-3 rounded-xl border border-emerald-200 flex items-center gap-3">
+                  <img id="pay-card-receipt-img" src="" alt="Payment Receipt" class="w-14 h-14 object-cover rounded-lg border border-slate-200 cursor-pointer shadow-sm hover:opacity-90" onclick="window.open(this.src)" />
+                  <div class="flex-1">
+                    <span class="text-xs font-bold text-slate-800">Weighbridge Receipt / DBT Proof</span>
+                    <p class="text-[10px] text-slate-500">Official receipt uploaded at mandi weighing terminal.</p>
+                  </div>
+                </div>
               </div>
 
             </div>
@@ -393,44 +541,152 @@
 
         </div>
       </div>
+      </div> <!-- ================= END FARMER SUB-VIEW 1: DASHBOARD ================= -->
 
-      <!-- Bottom: Farmer Booking History Table -->
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-          <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <span>📜</span> <span data-i18n="history_heading">Booking & Procurement History</span>
-          </h3>
-          <span id="history-count" class="text-xs font-bold text-slate-500">0 records</span>
+      <!-- ================= FARMER SUB-VIEW 2: HISTORY ================= -->
+      <div id="farmer-subview-history" class="hidden space-y-6">
+        
+        <div class="bg-gradient-to-r from-brand-navy to-brand-blue text-white rounded-2xl p-6 shadow-md flex items-center justify-between">
+          <div>
+            <span class="text-[10px] font-extrabold uppercase bg-amber-400 text-slate-950 px-2 py-0.5 rounded">HISTORICAL LEDGER</span>
+            <h2 class="text-2xl font-black mt-1" data-i18n="history_heading">Booking & Procurement History</h2>
+            <p class="text-xs text-slate-300 mt-0.5">Comprehensive audit trail of your APMC mandi bookings, gate admissions, and completed DBT payments.</p>
+          </div>
+          <span class="text-3xl">📜</span>
         </div>
 
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs text-slate-700">
-            <thead class="bg-slate-50 text-slate-500 font-bold uppercase border-b border-slate-200">
-              <tr>
-                <th class="py-3 px-3">Booking Code</th>
-                <th class="py-3 px-3">Mandi Centre</th>
-                <th class="py-3 px-3">Slot Window</th>
-                <th class="py-3 px-3">Est. Weight</th>
-                <th class="py-3 px-3">Status</th>
-                <th class="py-3 px-3">Arrival Time</th>
-                <th class="py-3 px-3">DBT Settlement</th>
-              </tr>
-            </thead>
-            <tbody id="history-table-body" class="divide-y divide-slate-100">
-              <tr>
-                <td colspan="7" class="py-8 text-center text-slate-400">Loading your history records...</td>
-              </tr>
-            </tbody>
-          </table>
+        <!-- Farmer Booking History Table -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+              <span>📋</span> <span>Mandi Slot Bookings & DBT Payment Records</span>
+            </h3>
+            <span id="history-count" class="text-xs font-bold text-slate-500">0 records</span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-slate-700">
+              <thead class="bg-slate-50 text-slate-500 font-bold uppercase border-b border-slate-200">
+                <tr>
+                  <th class="py-3 px-3">Booking Code</th>
+                  <th class="py-3 px-3">Mandi Centre</th>
+                  <th class="py-3 px-3">Slot Window</th>
+                  <th class="py-3 px-3">Est. Weight</th>
+                  <th class="py-3 px-3">Status</th>
+                  <th class="py-3 px-3">Arrival Time</th>
+                  <th class="py-3 px-3">DBT Settlement</th>
+                </tr>
+              </thead>
+              <tbody id="history-table-body" class="divide-y divide-slate-100">
+                <tr>
+                  <td colspan="7" class="py-8 text-center text-slate-400">Loading your history records...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+
+      </div> <!-- ================= END FARMER SUB-VIEW 2: HISTORY ================= -->
+
+      <!-- ================= FARMER SUB-VIEW 3: PROFILE ================= -->
+      <div id="farmer-subview-profile" class="hidden space-y-6">
+        
+        <div class="bg-gradient-to-r from-brand-navy to-brand-blue text-white rounded-2xl p-6 shadow-md flex items-center justify-between">
+          <div>
+            <span class="text-[10px] font-extrabold uppercase bg-amber-400 text-slate-950 px-2 py-0.5 rounded">FARMER CITIZEN IDENTITY</span>
+            <h2 class="text-2xl font-black mt-1">Farmer Registration & KYC Profile</h2>
+            <p class="text-xs text-slate-300 mt-0.5">Read-only profile verified against APMC Mandi database and national Aadhaar identity.</p>
+          </div>
+          <span class="text-3xl">👤</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+          <!-- Main Profile Card -->
+          <div class="md:col-span-8 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
+            <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+              <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                <span>📋</span> <span>Personal & Identity Details</span>
+              </h3>
+              <span class="badge bg-emerald-100 text-emerald-800 border border-emerald-300">Aadhaar Verified</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1">
+                <span class="text-slate-500 font-bold uppercase block text-[10px]">Full Name</span>
+                <span id="farmer-profile-name" class="text-sm font-extrabold text-slate-900 block">--</span>
+              </div>
+              <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1">
+                <span class="text-slate-500 font-bold uppercase block text-[10px]">Registered Mobile</span>
+                <span id="farmer-profile-phone" class="text-sm font-extrabold text-slate-900 block font-mono">--</span>
+              </div>
+              <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1">
+                <span class="text-slate-500 font-bold uppercase block text-[10px]">Aadhaar Number</span>
+                <span id="farmer-profile-aadhaar" class="text-sm font-extrabold text-slate-900 block font-mono">--</span>
+              </div>
+              <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1">
+                <span class="text-slate-500 font-bold uppercase block text-[10px]">Portal Role</span>
+                <span class="text-sm font-extrabold text-brand-blue block uppercase">Farmer / Producer</span>
+              </div>
+            </div>
+
+            <!-- Alternate Representative Block -->
+            <div class="border-t border-slate-100 pt-4 space-y-3">
+              <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                <span>👥</span> <span>Authorized Alternate Representative</span>
+              </h4>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                  <span class="text-slate-500 font-medium block text-[10px]">Representative Name</span>
+                  <span id="farmer-profile-alt-name" class="font-bold text-slate-900">None registered</span>
+                </div>
+                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                  <span class="text-slate-500 font-medium block text-[10px]">Representative Aadhaar</span>
+                  <span id="farmer-profile-alt-aadhaar" class="font-bold text-slate-900 font-mono">--</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Side Status & Guidelines Card -->
+          <div class="md:col-span-4 space-y-6">
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4 text-xs">
+              <h4 class="font-bold text-slate-900 text-sm">🌾 APMC Procurement Status</h4>
+              <div class="space-y-2">
+                <div class="flex justify-between py-1 border-b border-slate-100">
+                  <span class="text-slate-500">Account Status:</span>
+                  <span class="font-bold text-emerald-700">Active</span>
+                </div>
+                <div class="flex justify-between py-1 border-b border-slate-100">
+                  <span class="text-slate-500">DBT Bank Link:</span>
+                  <span class="font-bold text-emerald-700">NPCI Aadhaar Linked</span>
+                </div>
+                <div class="flex justify-between py-1">
+                  <span class="text-slate-500">MSP Scheme:</span>
+                  <span class="font-bold text-slate-900">Rabi/Kharif 2026</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 space-y-2">
+              <span class="font-bold block">💡 Important Farmer Notice:</span>
+              <p>Carry your original Aadhaar and gate pass QR token when visiting the mandi gate. Alternate representative must match the details listed above.</p>
+            </div>
+          </div>
+
+        </div>
+
+      </div> <!-- ================= END FARMER SUB-VIEW 3: PROFILE ================= -->
 
     </section>
 
     <!-- ================= VENDOR / MANDI OPS VIEW ================= -->
     <section id="view-vendor" class="hidden space-y-8">
       
-      <!-- Vendor Top Banner -->
+      <!-- ================= VENDOR SUB-VIEW 1: DASHBOARD ================= -->
+      <div id="vendor-subview-dashboard" class="space-y-8">
+
+        <!-- Vendor Top Banner -->
       <div class="bg-gradient-to-r from-slate-900 to-brand-slate text-white rounded-2xl p-6 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div class="flex items-center gap-2">
@@ -586,8 +842,85 @@
         </div>
 
       </div>
+      </div> <!-- ================= END VENDOR SUB-VIEW 1: DASHBOARD ================= -->
 
-      <!-- Mandi Transactions & Procurement Register -->
+      <!-- ================= VENDOR SUB-VIEW 2: STATISTICS ================= -->
+      <div id="vendor-subview-statistics" class="hidden space-y-8">
+        
+        <div class="bg-gradient-to-r from-slate-900 to-brand-slate text-white rounded-2xl p-6 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <span class="text-[10px] font-extrabold uppercase bg-amber-400 text-slate-950 px-2 py-0.5 rounded">MANDI METRICS & SETTLEMENTS</span>
+            <h2 class="text-2xl font-black mt-1">Operational Statistics & Analytics</h2>
+            <p class="text-xs text-slate-300 mt-0.5">Produce received today, slot-wise payment realization, and graphical procurement trends.</p>
+          </div>
+          <button onclick="refreshVendorData()" class="bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-4 py-2 rounded-xl border border-white/20 transition flex items-center gap-1.5 self-start sm:self-auto cursor-pointer">
+            🔄 Refresh Analytics
+          </button>
+        </div>
+
+        <!-- Today's Mandi Real-time Settlement Deck -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
+          <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+              <span>📊</span> <span>Today's Real-time Procurement & DBT Summary</span>
+            </h3>
+            <span class="text-xs font-bold text-slate-500 font-mono" id="vendor-today-date-badge">TODAY</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+            <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-1">
+              <span class="text-blue-600 font-bold uppercase block text-[10px] tracking-wider">Produce Received Today</span>
+              <div id="vendor-today-produce" class="text-2xl sm:text-3xl font-black text-blue-950">0.0 Q</div>
+              <span class="text-[11px] text-blue-700 font-medium">All itemized weighbridge tickets</span>
+            </div>
+            <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 space-y-1">
+              <span class="text-emerald-600 font-bold uppercase block text-[10px] tracking-wider">DBT Payments Disbursed Today</span>
+              <div id="vendor-today-payout" class="text-2xl sm:text-3xl font-black text-emerald-950">₹ 0</div>
+              <span class="text-[11px] text-emerald-700 font-medium">Credited to farmer bank accounts</span>
+            </div>
+            <div class="bg-purple-50 border border-purple-200 rounded-2xl p-4 space-y-1">
+              <span class="text-purple-600 font-bold uppercase block text-[10px] tracking-wider">Farmers Processed Today</span>
+              <div id="vendor-today-farmers" class="text-2xl sm:text-3xl font-black text-purple-950">0</div>
+              <span class="text-[11px] text-purple-700 font-medium">Weighed & verified arrivals</span>
+            </div>
+          </div>
+
+          <!-- Slot-wise Payment Realization Breakdown (5 daily 120-min slots) -->
+          <div class="space-y-3 pt-2">
+            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <span>⏱️</span> <span>Payments Received Per 120-Minute Window</span>
+            </h4>
+            <div id="vendor-slot-payout-cards" class="grid grid-cols-1 sm:grid-cols-5 gap-3 text-xs">
+              <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+                <span class="text-[10px] font-bold text-slate-500 block">08:00 - 10:00</span>
+                <span id="slot-pay-0" class="text-sm font-extrabold text-slate-900 block mt-1">₹ 0</span>
+                <span id="slot-wt-0" class="text-[10px] text-slate-500 font-medium">0.0 Q</span>
+              </div>
+              <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+                <span class="text-[10px] font-bold text-slate-500 block">10:00 - 12:00</span>
+                <span id="slot-pay-1" class="text-sm font-extrabold text-slate-900 block mt-1">₹ 0</span>
+                <span id="slot-wt-1" class="text-[10px] text-slate-500 font-medium">0.0 Q</span>
+              </div>
+              <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+                <span class="text-[10px] font-bold text-slate-500 block">12:00 - 14:00</span>
+                <span id="slot-pay-2" class="text-sm font-extrabold text-slate-900 block mt-1">₹ 0</span>
+                <span id="slot-wt-2" class="text-[10px] text-slate-500 font-medium">0.0 Q</span>
+              </div>
+              <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+                <span class="text-[10px] font-bold text-slate-500 block">14:00 - 16:00</span>
+                <span id="slot-pay-3" class="text-sm font-extrabold text-slate-900 block mt-1">₹ 0</span>
+                <span id="slot-wt-3" class="text-[10px] text-slate-500 font-medium">0.0 Q</span>
+              </div>
+              <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+                <span class="text-[10px] font-bold text-slate-500 block">16:00 - 18:00</span>
+                <span id="slot-pay-4" class="text-sm font-extrabold text-slate-900 block mt-1">₹ 0</span>
+                <span id="slot-wt-4" class="text-[10px] text-slate-500 font-medium">0.0 Q</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mandi Transactions & Procurement Register -->
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
         <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
           <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -618,72 +951,241 @@
         </div>
       </div>
 
+      <!-- 1. STRATEGIC PROCUREMENT DECK (Live Supply/Demand Signals) -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div class="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 class="text-base font-black text-slate-900 flex items-center gap-2">
+              <span>🎯</span> <span>Strategic Mandi Procurement Deck (Live Market Signals)</span>
+            </h3>
+            <p class="text-xs text-slate-500">Real-time supply vs demand pacing against daily mandi targets to guide procurement decisions.</p>
+          </div>
+          <button onclick="loadProcurementSignals()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-3.5 py-1.5 rounded-xl border border-slate-300 transition flex items-center gap-1.5 self-start sm:self-auto cursor-pointer">
+            🔄 Refresh Signals
+          </button>
+        </div>
+
+        <!-- Procurement Signals Grid -->
+        <div id="procurement-signals-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div class="col-span-full py-8 text-center text-xs text-slate-400">Loading live procurement signals...</div>
+        </div>
+      </div>
+
+      <!-- 2. DAY-WISE & SLOT-WISE SCHEDULING ARCHIVE -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div class="border-b border-slate-100 pb-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <h3 class="text-base font-black text-slate-900 flex items-center gap-2">
+              <span>📅</span> <span>Day-Wise & Slot-Wise Historical Schedule Archive</span>
+            </h3>
+            <p class="text-xs text-slate-500">Retrieve occupancy, farmer rosters, and DBT transaction settlements for any past or upcoming date.</p>
+          </div>
+          <!-- Date Filter and Query -->
+          <div class="flex items-center gap-2">
+            <input type="date" id="archive-date-input" onchange="loadScheduleHistory()" class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-blue" />
+            <button onclick="loadScheduleHistory()" class="bg-brand-navy hover:bg-slate-800 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-sm transition flex items-center gap-1 cursor-pointer">
+              🔍 Retrieve
+            </button>
+          </div>
+        </div>
+
+        <!-- Archive Summary Statistics KPIs -->
+        <div id="archive-kpi-deck" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-center text-xs">
+          <!-- Filled dynamically -->
+        </div>
+
+        <!-- Historical Slots Breakdown Accordion/Cards -->
+        <div id="archive-slots-container" class="space-y-3">
+          <div class="py-6 text-center text-xs text-slate-400">Select date above to retrieve schedule history.</div>
+        </div>
+      </div>
+
+      <!-- 3. CROP TREND TRACKER & GRAPHICAL TENURE ANALYSIS -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
+        <div class="border-b border-slate-100 pb-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <h3 class="text-base font-black text-slate-900 flex items-center gap-2">
+              <span>📈</span> <span>Crop Trend Tracker & Graphical Tenure Analysis</span>
+            </h3>
+            <p class="text-xs text-slate-500">Tenure-wise volume, arrival frequency, and MSP pricing trends from recorded database bookings.</p>
+          </div>
+
+          <!-- Timeframe & Crop Filter Switchers -->
+          <div class="flex flex-wrap items-center gap-2">
+            <!-- Timeframe Pills -->
+            <div class="inline-flex bg-slate-100 p-1 rounded-xl text-xs font-bold border border-slate-200">
+              <button onclick="switchTrendTimeframe('daily')" id="timeframe-daily" class="px-2.5 py-1 rounded-lg bg-white text-slate-900 shadow-sm transition">Daily</button>
+              <button onclick="switchTrendTimeframe('weekly')" id="timeframe-weekly" class="px-2.5 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition">Weekly</button>
+              <button onclick="switchTrendTimeframe('monthly')" id="timeframe-monthly" class="px-2.5 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition">Monthly</button>
+              <button onclick="switchTrendTimeframe('seasonal')" id="timeframe-seasonal" class="px-2.5 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition">Seasonal</button>
+            </div>
+            <!-- Crop Filter -->
+            <select id="trend-crop-select" onchange="loadCropTrends()" class="bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-800">
+              <option value="">All Crops</option>
+              <option value="Wheat">Wheat (गेंहू)</option>
+              <option value="Paddy">Paddy (धान)</option>
+              <option value="Mustard">Mustard (सरसों)</option>
+              <option value="Gram">Gram (चना)</option>
+              <option value="Cotton">Cotton (कपास)</option>
+              <option value="Maize">Maize (मक्का)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Crop Aggregate Summary Cards -->
+        <div id="trend-kpi-cards" class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <!-- Injected dynamically -->
+        </div>
+
+        <!-- Graphical Canvases -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">📊 Produce Volume (Quintals) & Farmer Arrivals</h4>
+            <div class="h-64 relative">
+              <canvas id="cropVolumeChart"></canvas>
+            </div>
+          </div>
+          <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">💰 MSP Value & Procurement Realization (₹)</h4>
+            <div class="h-64 relative">
+              <canvas id="cropValueChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+      </div> <!-- ================= END VENDOR SUB-VIEW 2: STATISTICS ================= -->
+
+      <!-- ================= VENDOR SUB-VIEW 3: PROFILE ================= -->
+      <div id="vendor-subview-profile" class="hidden space-y-6">
+        
+        <div class="bg-gradient-to-r from-slate-900 to-brand-slate text-white rounded-2xl p-6 shadow-md flex items-center justify-between">
+          <div>
+            <span class="text-[10px] font-extrabold uppercase bg-brand-accent text-slate-950 px-2 py-0.5 rounded">MANDI OPERATOR REGISTRY</span>
+            <h2 class="text-2xl font-black mt-1">Mandi Centre & Manager Profile</h2>
+            <p class="text-xs text-slate-300 mt-0.5">Official registration records authorized by the District APMC Mandi Administration.</p>
+          </div>
+          <span class="text-3xl">⚖️</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+          <div class="md:col-span-8 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
+            <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+              <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                <span>🏛️</span> <span>Mandi Facility Information</span>
+              </h3>
+              <span class="badge bg-emerald-100 text-emerald-800 border border-emerald-300">Authorized APMC Mandi</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1">
+                <span class="text-slate-500 font-bold uppercase block text-[10px]">Mandi Name</span>
+                <span id="vendor-profile-mandi" class="text-sm font-extrabold text-slate-900 block">--</span>
+              </div>
+              <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1">
+                <span class="text-slate-500 font-bold uppercase block text-[10px]">Centre Identifier</span>
+                <span id="vendor-profile-id" class="text-sm font-extrabold text-brand-blue block font-mono">--</span>
+              </div>
+              <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1">
+                <span class="text-slate-500 font-bold uppercase block text-[10px]">State & District</span>
+                <span id="vendor-profile-location" class="text-sm font-extrabold text-slate-900 block">--</span>
+              </div>
+              <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1">
+                <span class="text-slate-500 font-bold uppercase block text-[10px]">Physical Mandi Yard</span>
+                <span id="vendor-profile-address" class="text-sm font-extrabold text-slate-900 block">--</span>
+              </div>
+            </div>
+
+            <div class="border-t border-slate-100 pt-4 space-y-3">
+              <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                <span>👤</span> <span>Authorized Mandi Manager</span>
+              </h4>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                  <span class="text-slate-500 font-medium block text-[10px]">Manager Name</span>
+                  <span id="vendor-profile-manager" class="font-bold text-slate-900">--</span>
+                </div>
+                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                  <span class="text-slate-500 font-medium block text-[10px]">Authorized Phone</span>
+                  <span id="vendor-profile-phone" class="font-bold text-slate-900 font-mono">--</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="md:col-span-4 space-y-6">
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4 text-xs">
+              <h4 class="font-bold text-slate-900 text-sm">⚙️ Operating Queue Parameters</h4>
+              <div class="space-y-2">
+                <div class="flex justify-between py-1 border-b border-slate-100">
+                  <span class="text-slate-500">Active Counters (C):</span>
+                  <span id="vendor-profile-counters" class="font-bold text-slate-900">3 Counters</span>
+                </div>
+                <div class="flex justify-between py-1 border-b border-slate-100">
+                  <span class="text-slate-500">Pace Factor (F):</span>
+                  <span id="vendor-profile-factor" class="font-bold text-slate-900">1.0 (Normal)</span>
+                </div>
+                <div class="flex justify-between py-1">
+                  <span class="text-slate-500">Operating Status:</span>
+                  <span id="vendor-profile-status" class="font-bold text-emerald-700">NORMAL</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="p-4 bg-blue-50 border border-blue-200 rounded-2xl text-xs text-blue-900 space-y-2">
+              <span class="font-bold block">🛡️ District Authority Governance:</span>
+              <p>Mandi configurations are monitored in real-time by the District Collector and APMC Central Command.</p>
+            </div>
+          </div>
+        </div>
+
+      </div> <!-- ================= END VENDOR SUB-VIEW 3: PROFILE ================= -->
+
     </section>
 
     <!-- ================= ADMIN VIEW ================= -->
     <section id="view-admin" class="hidden space-y-8">
       
-      <div class="bg-gradient-to-r from-slate-900 via-brand-indigo to-slate-900 text-white rounded-2xl p-6 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <span class="text-[10px] font-bold uppercase bg-amber-400 text-slate-950 px-2 py-0.5 rounded">DISTRICT COMMAND</span>
-          <h2 class="text-2xl font-black mt-1" data-i18n="admin_panel_title">District APMC Mandi Administration</h2>
-          <p class="text-xs text-slate-300 mt-0.5" data-i18n="admin_panel_sub">Register APMC mandis, authorize managers, oversee district slots, and audit DBT disbursements.</p>
-        </div>
-        <button onclick="refreshAdminData()" class="bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-4 py-2 rounded-xl border border-white/20 transition">
-          🔄 Refresh Directory
-        </button>
-      </div>
+      <!-- ================= ADMIN SUB-VIEW 1: DASHBOARD ================= -->
+      <div id="admin-subview-dashboard" class="space-y-8">
 
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <!-- Left: Onboard Mandi Centre (5 Cols) -->
-        <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-          <div class="border-b border-slate-100 pb-3">
-            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
-              <span>🏛️</span> <span data-i18n="admin_onboard_heading">Register Mandi & Assign Vendor</span>
-            </h3>
+        <div class="bg-gradient-to-r from-slate-900 via-brand-indigo to-slate-900 text-white rounded-2xl p-6 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <span class="text-[10px] font-bold uppercase bg-amber-400 text-slate-950 px-2 py-0.5 rounded">DISTRICT COMMAND</span>
+            <h2 class="text-2xl font-black mt-1" data-i18n="admin_panel_title">District APMC Mandi Administration</h2>
+            <p class="text-xs text-slate-300 mt-0.5" data-i18n="admin_panel_sub">Register APMC mandis, authorize managers, oversee district slots, and audit DBT disbursements.</p>
           </div>
-
-          <form onsubmit="handleAdminCreateVendor(event)" class="space-y-3.5">
-            <div>
-              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Mandi Name</label>
-              <input type="text" id="admin-mandi-name" placeholder="e.g. Ludhiana Central Grain Market" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold" />
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">State</label>
-                <input type="text" id="admin-mandi-state" value="Punjab" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold" />
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">City / District</label>
-                <input type="text" id="admin-mandi-city" value="Ludhiana" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold" />
-              </div>
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Physical Address</label>
-              <input type="text" id="admin-mandi-address" placeholder="e.g. Gate No. 2, APMC Yard" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold" />
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Manager Full Name</label>
-              <input type="text" id="admin-manager-name" placeholder="e.g. Baldev Singh" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold" />
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Manager Phone</label>
-                <input type="tel" id="admin-manager-phone" placeholder="10-digit mobile" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold" />
-              </div>
-              <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Manager Aadhaar</label>
-                <input type="text" id="admin-manager-aadhaar" placeholder="12-digit number" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold" />
-              </div>
-            </div>
-            <button type="submit" class="w-full bg-brand-navy hover:bg-slate-800 text-white font-bold text-xs py-3 rounded-xl shadow transition cursor-pointer">
-              ➕ Authorize & Register Mandi Centre
-            </button>
-          </form>
+          <button onclick="refreshAdminData()" class="bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-4 py-2 rounded-xl border border-white/20 transition flex items-center gap-1.5 self-start sm:self-auto cursor-pointer">
+            🔄 Refresh Directory
+          </button>
         </div>
 
-        <!-- Right: Registered Users Directory (7 Cols) -->
-        <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <!-- District High-Level Overview KPIs -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-1">
+            <span class="text-slate-500 font-bold uppercase block text-[10px] tracking-wider">Active Mandis</span>
+            <div id="admin-kpi-mandis" class="text-2xl sm:text-3xl font-black text-slate-900">4</div>
+            <span class="text-[11px] text-emerald-600 font-semibold">Authorized Centres</span>
+          </div>
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-1">
+            <span class="text-slate-500 font-bold uppercase block text-[10px] tracking-wider">Registered Accounts</span>
+            <div id="admin-kpi-users" class="text-2xl sm:text-3xl font-black text-brand-blue">--</div>
+            <span class="text-[11px] text-slate-500 font-semibold">Farmers & Vendors</span>
+          </div>
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-1">
+            <span class="text-slate-500 font-bold uppercase block text-[10px] tracking-wider">District Bookings</span>
+            <div id="admin-kpi-bookings" class="text-2xl sm:text-3xl font-black text-purple-700">--</div>
+            <span class="text-[11px] text-purple-600 font-semibold">Recorded to Date</span>
+          </div>
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-1">
+            <span class="text-slate-500 font-bold uppercase block text-[10px] tracking-wider">Governance Desk</span>
+            <div class="text-xl sm:text-2xl font-black text-emerald-700">ONLINE</div>
+            <span class="text-[11px] text-slate-500 font-semibold">Audit Ledger Live</span>
+          </div>
+        </div>
+
+        <!-- District Users Directory -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
           <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
             <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
               <span>👥</span> <span data-i18n="admin_users_heading">District Users Directory</span>
@@ -710,42 +1212,161 @@
             </table>
           </div>
         </div>
-      </div>
 
-      <!-- District-wide Mandi Bookings Ledger -->
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-        <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
-          <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
-            <span>📊</span> <span data-i18n="admin_bookings_heading">District All-Mandi Bookings Ledger</span>
-          </h3>
-          <span id="admin-bookings-count" class="text-xs font-bold text-slate-500">0 bookings</span>
+        <!-- District-wide Mandi Bookings Ledger -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+          <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+              <span>📊</span> <span data-i18n="admin_bookings_heading">District All-Mandi Bookings Ledger</span>
+            </h3>
+            <span id="admin-bookings-count" class="text-xs font-bold text-slate-500">0 bookings</span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-slate-700">
+              <thead class="bg-slate-50 text-slate-500 font-bold uppercase border-b border-slate-200">
+                <tr>
+                  <th class="py-3 px-3">Code</th>
+                  <th class="py-3 px-3">Farmer</th>
+                  <th class="py-3 px-3">Mandi</th>
+                  <th class="py-3 px-3">Slot Window</th>
+                  <th class="py-3 px-3">Weight</th>
+                  <th class="py-3 px-3">Status</th>
+                  <th class="py-3 px-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-bookings-body" class="divide-y divide-slate-100">
+                <tr>
+                  <td colspan="7" class="py-6 text-center text-slate-400">Loading district bookings...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs text-slate-700">
-            <thead class="bg-slate-50 text-slate-500 font-bold uppercase border-b border-slate-200">
-              <tr>
-                <th class="py-3 px-3">Code</th>
-                <th class="py-3 px-3">Farmer</th>
-                <th class="py-3 px-3">Mandi</th>
-                <th class="py-3 px-3">Slot Window</th>
-                <th class="py-3 px-3">Weight</th>
-                <th class="py-3 px-3">Status</th>
-                <th class="py-3 px-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="admin-bookings-body" class="divide-y divide-slate-100">
-              <tr>
-                <td colspan="7" class="py-6 text-center text-slate-400">Loading district bookings...</td>
-              </tr>
-            </tbody>
-          </table>
+      </div> <!-- ================= END ADMIN SUB-VIEW 1: DASHBOARD ================= -->
+
+      <!-- ================= ADMIN SUB-VIEW 2: ADD VENDOR ================= -->
+      <div id="admin-subview-add-vendor" class="hidden space-y-6">
+        
+        <div class="bg-gradient-to-r from-slate-900 via-brand-indigo to-slate-900 text-white rounded-2xl p-6 shadow-md flex items-center justify-between">
+          <div>
+            <span class="text-[10px] font-bold uppercase bg-amber-400 text-slate-950 px-2 py-0.5 rounded">MANDI ONBOARDING</span>
+            <h2 class="text-2xl font-black mt-1">Register Mandi & Assign Vendor</h2>
+            <p class="text-xs text-slate-300 mt-0.5">Authorize a new APMC Mandi Procurement Centre and assign the operational vendor manager.</p>
+          </div>
+          <span class="text-3xl">🏛️</span>
         </div>
-      </div>
+
+        <div class="max-w-3xl mx-auto bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
+          <div class="border-b border-slate-100 pb-3 flex items-center justify-between">
+            <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <span>➕</span> <span data-i18n="admin_onboard_heading">Register Mandi & Assign Vendor</span>
+            </h3>
+            <span class="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-lg">Official Mandi Accreditation</span>
+          </div>
+
+          <form onsubmit="handleAdminCreateVendor(event)" class="space-y-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Mandi Name</label>
+              <input type="text" id="admin-mandi-name" placeholder="e.g. Ludhiana Central Grain Market" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none" />
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">State</label>
+                <input type="text" id="admin-mandi-state" value="Punjab" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">City / District</label>
+                <input type="text" id="admin-mandi-city" value="Ludhiana" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none" />
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Physical Address</label>
+              <input type="text" id="admin-mandi-address" placeholder="e.g. Gate No. 2, APMC Yard" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none" />
+            </div>
+            <div class="border-t border-slate-100 pt-3">
+              <span class="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">Vendor Manager Assignment</span>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Manager Full Name</label>
+              <input type="text" id="admin-manager-name" placeholder="e.g. Baldev Singh" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none" />
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Manager Mobile Phone</label>
+                <input type="tel" id="admin-manager-phone" placeholder="10-digit mobile" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Manager Aadhaar Number</label>
+                <input type="text" id="admin-manager-aadhaar" placeholder="12-digit number" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none" />
+              </div>
+            </div>
+            <button type="submit" class="w-full bg-brand-navy hover:bg-slate-800 text-white font-extrabold text-sm py-3.5 rounded-xl shadow transition cursor-pointer flex items-center justify-center gap-2 mt-4">
+              <span>➕</span> <span>Authorize & Register Mandi Centre</span>
+            </button>
+          </form>
+        </div>
+
+      </div> <!-- ================= END ADMIN SUB-VIEW 2: ADD VENDOR ================= -->
+
+      <!-- ================= ADMIN SUB-VIEW 3: DELETE USER ================= -->
+      <div id="admin-subview-delete-user" class="hidden space-y-6">
+        
+        <div class="bg-gradient-to-r from-slate-900 via-rose-950 to-slate-900 text-white rounded-2xl p-6 shadow-md flex items-center justify-between">
+          <div>
+            <span class="text-[10px] font-bold uppercase bg-rose-500 text-white px-2 py-0.5 rounded">ACCESS MANAGEMENT & REMOVAL</span>
+            <h2 class="text-2xl font-black mt-1">Delete User Account</h2>
+            <p class="text-xs text-slate-300 mt-0.5">Revoke access and safely delete registered farmers or vendor accounts from the district registry.</p>
+          </div>
+          <span class="text-3xl">🗑️</span>
+        </div>
+
+        <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 flex items-start gap-3">
+          <span class="text-xl">⚠️</span>
+          <div>
+            <span class="font-extrabold block text-amber-950">Cascade Safety Advisory:</span>
+            <p class="mt-0.5">Deleting an account will safely delete all related bookings, gate passes, and queue states. This operation is permanent and logged in the District APMC Audit Ledger.</p>
+          </div>
+        </div>
+
+        <!-- User Search and Delete Table -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+              <span>🔍</span> <span>Find & Remove Users</span>
+            </h3>
+            <div class="flex items-center gap-2">
+              <input type="text" id="admin-delete-user-search" oninput="filterAdminDeleteUsers()" placeholder="Search by name or phone..." class="bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-blue" />
+            </div>
+          </div>
+
+          <div class="overflow-x-auto max-h-96">
+            <table class="w-full text-left text-xs text-slate-700">
+              <thead class="bg-slate-50 text-slate-500 font-bold uppercase border-b border-slate-200 sticky top-0">
+                <tr>
+                  <th class="py-2.5 px-3">Name</th>
+                  <th class="py-2.5 px-3">Role</th>
+                  <th class="py-2.5 px-3">Phone</th>
+                  <th class="py-2.5 px-3">Aadhaar</th>
+                  <th class="py-2.5 px-3">Action</th>
+                </tr>
+              </thead>
+              <tbody id="admin-delete-users-body" class="divide-y divide-slate-100">
+                <tr>
+                  <td colspan="5" class="py-6 text-center text-slate-400">Loading user accounts...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div> <!-- ================= END ADMIN SUB-VIEW 3: DELETE USER ================= -->
 
     </section>
 
   </main>
+  </div> <!-- ================= END APP SHELL ================= -->
 
   <!-- ================= WEIGHING & DBT PAYMENT MODAL ================= -->
   <div id="vendor-weigh-modal" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
@@ -768,21 +1389,25 @@
           <div class="text-slate-500">Estimated produce: <span id="weigh-est-weight" class="font-bold text-slate-700"></span> qtl</div>
         </div>
 
-        <div>
-          <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Actual Measured Weight (Quintals)</label>
-          <input type="number" id="weigh-actual-weight" step="0.1" min="0.5" required oninput="calculatePayout()" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-bold text-slate-900" />
+        <!-- Multi-Crop Itemized Actual Weighing Section -->
+        <div class="space-y-2">
+          <label class="block text-xs font-bold text-slate-700 uppercase">Crop-wise Measured Weight & Payout</label>
+          <div id="weigh-crops-container" class="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs">
+            <!-- Dynamically populated per crop -->
+          </div>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">MSP Rate (₹/Quintal)</label>
-            <input type="number" id="weigh-msp-rate" value="2320" step="10" required oninput="calculatePayout()" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold" />
+            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Total Net Weight (Q)</label>
+            <input type="number" id="weigh-actual-weight" step="0.1" min="0.1" required oninput="onOverallWeightChange()" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold" />
           </div>
           <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Total Payout (₹)</label>
+            <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Total DBT Payout (₹)</label>
             <input type="number" id="weigh-total-amount" readonly class="w-full bg-emerald-50 border border-emerald-300 rounded-xl px-3 py-2 text-xs font-extrabold text-emerald-800" />
           </div>
         </div>
+        <input type="hidden" id="weigh-msp-rate" value="2320" />
 
         <div>
           <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Payment Method</label>
@@ -796,6 +1421,16 @@
           <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Payment Proof / Bank UTR Ref No.</label>
           <input type="text" id="weigh-proof-ref" placeholder="e.g. UTR-PUNB20268899" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-mono font-bold" />
           <span class="text-[10px] text-slate-400">Enter bank transfer UTR or receipt reference.</span>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Payment Receipt / Screenshot (Optional)</label>
+          <input type="file" id="weigh-proof-image" accept="image/*" onchange="previewWeighImage(event)" class="w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-brand-blue file:text-white hover:file:bg-blue-800 cursor-pointer" />
+          <div id="weigh-image-preview-wrap" class="hidden mt-2 flex items-center gap-3 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+            <img id="weigh-image-preview" src="" alt="Proof Preview" class="h-14 w-20 object-cover rounded-lg border border-slate-300" />
+            <div class="flex-1 text-[11px] text-slate-600 truncate" id="weigh-image-name">receipt.png</div>
+            <button type="button" onclick="clearWeighImage()" class="text-rose-500 hover:text-rose-700 text-xs font-bold px-2 py-1">✕ Remove</button>
+          </div>
         </div>
 
         <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm py-3.5 rounded-xl shadow transition cursor-pointer">
@@ -873,13 +1508,26 @@
         <button onclick="closeAuthModal()" class="text-slate-400 hover:text-slate-600 font-bold text-lg cursor-pointer">✕</button>
       </div>
 
+      <!-- In-Modal Login & Auth Error Alert Banner -->
+      <div id="auth-modal-error" class="hidden p-3.5 bg-rose-50 border-2 border-rose-300 rounded-xl text-xs text-rose-900 font-bold flex items-start justify-between gap-2 shadow-sm">
+        <div class="flex items-start gap-2">
+          <span class="text-base leading-none">⚠️</span>
+          <span id="auth-modal-error-msg">Please enter valid credentials.</span>
+        </div>
+        <button type="button" onclick="clearAuthModalError()" class="text-rose-400 hover:text-rose-700 font-bold text-sm leading-none cursor-pointer">✕</button>
+      </div>
+      <div id="auth-phone-error" class="hidden"><span id="auth-phone-error-msg"></span></div>
+
       <!-- Role Selector Tabs -->
-      <div class="flex bg-slate-100 p-1 rounded-xl text-xs font-bold">
+      <div class="flex bg-slate-100 p-1 rounded-xl text-xs font-bold gap-1">
         <button id="auth-role-farmer-btn" onclick="setAuthRole('farmer')" class="flex-1 py-2 rounded-lg bg-white text-slate-900 shadow-sm transition" data-i18n="role_farmer_tab">
           🚜 Farmer
         </button>
         <button id="auth-role-vendor-btn" onclick="setAuthRole('vendor')" class="flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition" data-i18n="role_vendor_tab">
-          ⚖️ Mandi Vendor / Admin
+          ⚖️ Mandi Vendor
+        </button>
+        <button id="auth-role-admin-btn" onclick="setAuthRole('admin')" class="flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition">
+          🛡️ Admin
         </button>
       </div>
 
@@ -895,12 +1543,13 @@
         </div>
 
         <!-- Farmer Sign In Form -->
-        <form id="farmer-login-form" onsubmit="handleFarmerLogin(event)" class="space-y-4">
+        <form id="farmer-login-form" onsubmit="handleFarmerLogin(event)" class="space-y-3.5">
           <div>
             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1" data-i18n="label_mobile">Mobile Number</label>
-            <input type="tel" id="farmer-login-phone" placeholder="Enter 10-digit mobile number" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none" />
+            <input type="tel" id="farmer-login-phone" oninput="clearAuthPhoneError()" placeholder="10-digit mobile number" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none" />
           </div>
-          <button type="submit" class="w-full bg-brand-navy hover:bg-slate-800 text-white font-extrabold text-sm py-3 rounded-xl shadow transition cursor-pointer" data-i18n="btn_login">
+
+          <button type="submit" id="farmer-login-submit-btn" class="w-full bg-brand-navy hover:bg-slate-800 text-white font-extrabold text-sm py-3 rounded-xl shadow transition cursor-pointer" data-i18n="btn_login">
             Sign In
           </button>
         </form>
@@ -913,8 +1562,9 @@
           </div>
           <div>
             <label class="block text-xs font-bold text-slate-700 uppercase mb-1" data-i18n="label_mobile">Mobile Number</label>
-            <input type="tel" id="farmer-signup-phone" placeholder="10-digit mobile number" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-900" />
+            <input type="tel" id="farmer-signup-phone" oninput="clearAuthPhoneError()" placeholder="10-digit mobile number" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-900" />
           </div>
+
           <div>
             <label class="block text-xs font-bold text-slate-700 uppercase mb-1" data-i18n="label_aadhaar">Aadhaar Number (Farmer)</label>
             <input type="text" id="farmer-signup-aadhaar" placeholder="12-digit Aadhaar number" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-900" />
@@ -926,27 +1576,57 @@
             <input type="text" id="farmer-signup-alt-aadhaar" placeholder="Alternate person 12-digit Aadhaar" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-900" />
           </div>
 
-          <button type="submit" class="w-full bg-brand-blue hover:bg-blue-900 text-white font-extrabold text-sm py-3 rounded-xl shadow transition cursor-pointer" data-i18n="btn_register">
+          <button type="submit" id="farmer-signup-submit-btn" class="w-full bg-brand-blue hover:bg-blue-900 text-white font-extrabold text-sm py-3 rounded-xl shadow transition cursor-pointer" data-i18n="btn_register">
             Create Account & Sign In
           </button>
         </form>
 
       </div>
 
-      <!-- ================= 2. VENDOR / ADMIN SECTION ================= -->
+      <!-- ================= 2. MANDI VENDOR SECTION ================= -->
       <div id="auth-vendor-section" class="hidden space-y-4">
         <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 space-y-1">
-          <p class="font-semibold text-slate-800">APMC Mandi Vendors & District Administrators</p>
-          <p>Sign in using your authorized phone number. Vendors are registered by District Mandi Administrators.</p>
+          <p class="font-semibold text-slate-800">Authorized APMC Mandi Vendors</p>
+          <p>Sign in using your registered mobile number and password (password is your registered mobile number).</p>
         </div>
 
-        <form id="vendor-login-form" onsubmit="handleVendorLogin(event)" class="space-y-4">
+        <form id="vendor-login-form" onsubmit="handleVendorLogin(event)" class="space-y-3.5">
           <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1" data-i18n="label_mobile">Authorized Mobile Number</label>
-            <input type="tel" id="vendor-login-phone" placeholder="Enter registered phone number" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none" />
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1" data-i18n="label_mobile">Registered Mobile Number</label>
+            <input type="tel" id="vendor-login-phone" oninput="clearAuthPhoneError()" placeholder="Enter registered phone number" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none" />
           </div>
-          <button type="submit" class="w-full bg-brand-navy hover:bg-slate-800 text-white font-extrabold text-sm py-3 rounded-xl shadow transition cursor-pointer" data-i18n="btn_login">
-            Sign In as Vendor / Admin
+
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Password</label>
+            <input type="password" id="vendor-login-password" placeholder="Enter password (registered mobile number)" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none" />
+          </div>
+
+          <button type="submit" id="vendor-login-submit-btn" class="w-full bg-brand-navy hover:bg-slate-800 text-white font-extrabold text-sm py-3 rounded-xl shadow transition cursor-pointer" data-i18n="btn_login">
+            Sign In as Mandi Vendor
+          </button>
+        </form>
+      </div>
+
+      <!-- ================= 3. ADMIN SECTION ================= -->
+      <div id="auth-admin-section" class="hidden space-y-4">
+        <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 space-y-1">
+          <p class="font-semibold text-slate-800">District Mandi Administration</p>
+          <p>Access the central governance portal with your Admin ID and password.</p>
+          <p class="text-[11px] text-slate-500 font-mono">Admin ID: <strong class="text-slate-800">123457890</strong> · Password: <strong class="text-slate-800">123456789</strong></p>
+        </div>
+
+        <form id="admin-login-form" onsubmit="handleAdminLogin(event)" class="space-y-3.5">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Admin ID</label>
+            <input type="text" id="admin-login-id" oninput="clearAuthModalError()" placeholder="Enter Admin ID (123457890)" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Administrator Password</label>
+            <input type="password" id="admin-login-password" oninput="clearAuthModalError()" placeholder="Enter Admin Password (123456789)" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-brand-blue focus:outline-none" />
+          </div>
+
+          <button type="submit" id="admin-login-submit-btn" class="w-full bg-slate-900 hover:bg-black text-white font-extrabold text-sm py-3 rounded-xl shadow transition cursor-pointer">
+            Sign In as Administrator
           </button>
         </form>
       </div>
@@ -1033,7 +1713,7 @@
         admin_bookings_heading: "District All-Mandi Bookings Ledger",
         auth_modal_title: "Sign In to AnnSetu",
         role_farmer_tab: "🚜 Farmer",
-        role_vendor_tab: "⚖️ Mandi Vendor / Admin",
+        role_vendor_tab: "⚖️ Mandi Vendor",
         label_mobile: "Mobile Number",
         label_fullname: "Full Name",
         label_aadhaar: "Aadhaar Number",
@@ -1101,7 +1781,7 @@
         admin_bookings_heading: "జిల్లా వ్యాప్త బుకింగ్‌ల లెడ్జర్",
         auth_modal_title: "AnnSetu లోకి ప్రవేశించండి",
         role_farmer_tab: "🚜 రైతు",
-        role_vendor_tab: "⚖️ మండీ నిర్వాహకుడు / అడ్మిన్",
+        role_vendor_tab: "⚖️ మండీ నిర్వాహకుడు",
         label_mobile: "మొబైల్ నంబర్",
         label_fullname: "పూర్తి పేరు",
         label_aadhaar: "ఆధార్ నంబర్",
@@ -1169,7 +1849,7 @@
         admin_bookings_heading: "जिला स्तरीय बुकिंग लेजर",
         auth_modal_title: "AnnSetu में प्रवेश करें",
         role_farmer_tab: "🚜 किसान",
-        role_vendor_tab: "⚖️ मंडी व्यापारी / व्यवस्थापक",
+        role_vendor_tab: "⚖️ मंडी व्यापारी",
         label_mobile: "मोबाइल नंबर",
         label_fullname: "पूरा नाम",
         label_aadhaar: "आधार संख्या",
@@ -1250,8 +1930,103 @@
       document.getElementById('global-alert').classList.add('hidden');
     }
 
+    // ── PERSISTENT SIDEBAR & SUB-VIEW NAVIGATION ────────────────────
+    let currentSubViews = {
+      farmer: 'dashboard',
+      vendor: 'dashboard',
+      admin: 'dashboard'
+    };
+
+    function switchRoleSubView(role, subview) {
+      currentSubViews[role] = subview;
+
+      if (role === 'farmer') {
+        ['dashboard', 'history', 'profile'].forEach(sv => {
+          const el = document.getElementById(`farmer-subview-${sv}`);
+          if (el) el.classList.toggle('hidden', sv !== subview);
+          const btn = document.getElementById(`nav-farmer-${sv}`);
+          if (btn) {
+            if (sv === subview) {
+              btn.className = 'sidebar-nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-extrabold bg-brand-blue text-white shadow-md border-l-4 border-amber-400 transition cursor-pointer';
+            } else {
+              btn.className = 'sidebar-nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition cursor-pointer';
+            }
+          }
+        });
+        if (subview === 'history') {
+          loadFarmerHistory();
+        } else if (subview === 'profile') {
+          renderFarmerProfile();
+        }
+      } else if (role === 'vendor') {
+        ['dashboard', 'statistics', 'profile'].forEach(sv => {
+          const el = document.getElementById(`vendor-subview-${sv}`);
+          if (el) el.classList.toggle('hidden', sv !== subview);
+          const btn = document.getElementById(`nav-vendor-${sv}`);
+          if (btn) {
+            if (sv === subview) {
+              btn.className = 'sidebar-nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-extrabold bg-brand-blue text-white shadow-md border-l-4 border-amber-400 transition cursor-pointer';
+            } else {
+              btn.className = 'sidebar-nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition cursor-pointer';
+            }
+          }
+        });
+        if (subview === 'statistics') {
+          loadVendorTodayKPIs();
+          loadProcurementSignals();
+          loadScheduleHistory();
+          loadCropTrends();
+          setTimeout(() => window.dispatchEvent(new Event('resize')), 150);
+        } else if (subview === 'profile') {
+          renderVendorProfile();
+        }
+      } else if (role === 'admin') {
+        ['dashboard', 'add-vendor', 'delete-user'].forEach(sv => {
+          const el = document.getElementById(`admin-subview-${sv}`);
+          if (el) el.classList.toggle('hidden', sv !== subview);
+          const btn = document.getElementById(`nav-admin-${sv}`);
+          if (btn) {
+            if (sv === subview) {
+              btn.className = 'sidebar-nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-extrabold bg-brand-blue text-white shadow-md border-l-4 border-amber-400 transition cursor-pointer';
+            } else {
+              btn.className = 'sidebar-nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white transition cursor-pointer';
+            }
+          }
+        });
+        if (subview === 'delete-user') {
+          renderAdminDeleteView();
+        } else if (subview === 'dashboard') {
+          refreshAdminData();
+        }
+      }
+    }
+
+    // ── BOOKING SUCCESS TOAST ────────────────────────────────────────
+    let bookingToastTimer = null;
+    function showBookingSuccessToast(msg) {
+      const toast = document.getElementById('booking-success-toast');
+      const msgEl = document.getElementById('booking-success-toast-msg');
+      if (toast) {
+        if (msg && msgEl) msgEl.textContent = msg;
+        toast.classList.remove('hidden');
+        if (bookingToastTimer) clearTimeout(bookingToastTimer);
+        bookingToastTimer = setTimeout(() => {
+          toast.classList.add('hidden');
+        }, 6000);
+      }
+    }
+
+    function closeBookingSuccessToast() {
+      const toast = document.getElementById('booking-success-toast');
+      if (toast) toast.classList.add('hidden');
+      if (bookingToastTimer) clearTimeout(bookingToastTimer);
+    }
+
     // ── NAVIGATION & VIEW SWITCHING ──────────────────────────────────
     function switchView(viewName) {
+      if (currentUser && viewName !== currentUser.role) {
+        viewName = currentUser.role;
+      }
       activeView = viewName;
       document.getElementById('view-hero').classList.add('hidden');
       document.getElementById('view-farmer').classList.add('hidden');
@@ -1275,9 +2050,16 @@
         targetSection.classList.remove('hidden');
       }
 
-      if (viewName === 'farmer') refreshFarmerData();
-      if (viewName === 'vendor') refreshVendorData();
-      if (viewName === 'admin') refreshAdminData();
+      if (viewName === 'farmer') {
+        refreshFarmerData();
+        switchRoleSubView('farmer', currentSubViews.farmer || 'dashboard');
+      } else if (viewName === 'vendor') {
+        refreshVendorData();
+        switchRoleSubView('vendor', currentSubViews.vendor || 'dashboard');
+      } else if (viewName === 'admin') {
+        refreshAdminData();
+        switchRoleSubView('admin', currentSubViews.admin || 'dashboard');
+      }
     }
 
     function goToHome() {
@@ -1292,46 +2074,107 @@
       }
     }
 
-    // ── AUTH & SESSION HANDLING (Zero Demo Details) ─────────────────
+    // ── AUTH ERROR HANDLING (DISPLAYED DIRECTLY IN LOGIN MODAL UI) ──
+    function showAuthModalError(msg) {
+      const errEl = document.getElementById('auth-modal-error') || document.getElementById('auth-phone-error');
+      const msgEl = document.getElementById('auth-modal-error-msg') || document.getElementById('auth-phone-error-msg');
+      if (errEl && msgEl) {
+        msgEl.textContent = msg || 'Authentication failed. Please check your credentials.';
+        errEl.classList.remove('hidden');
+      }
+    }
+
+    function clearAuthModalError() {
+      const errEl = document.getElementById('auth-modal-error');
+      if (errEl) errEl.classList.add('hidden');
+      const phoneErrEl = document.getElementById('auth-phone-error');
+      if (phoneErrEl) phoneErrEl.classList.add('hidden');
+    }
+
+    function showAuthPhoneError(msg) {
+      showAuthModalError(msg);
+    }
+
+    function clearAuthPhoneError() {
+      clearAuthModalError();
+    }
+
+    function validateIndianPhoneInput(phone) {
+      let clean = (phone || '').trim().replace(/[\s\-()]/g, '');
+      if (clean.startsWith('+91')) {
+        clean = clean.slice(3);
+      } else if (clean.startsWith('91') && clean.length === 12) {
+        clean = clean.slice(2);
+      } else if (clean.startsWith('0') && clean.length === 11) {
+        clean = clean.slice(1);
+      }
+
+      // Allowed demo logins or valid Indian 10-digit format starting with 6-9
+      if (['123456890', '1234567890'].includes(clean) || /^[6-9]\d{9}$/.test(clean)) {
+        clearAuthPhoneError();
+        return clean;
+      }
+      showAuthPhoneError('Invalid phone number. Must be a valid 10-digit Indian mobile number starting with 6-9.');
+      return null;
+    }
+
+    // ── AUTH & SESSION HANDLING ─────────────────────────────────────
     function openAuthModal(role = 'farmer') {
       setAuthRole(role);
-      // Clean blank inputs: NO demo values!
-      document.getElementById('farmer-login-phone').value = '';
-      document.getElementById('farmer-signup-name').value = '';
-      document.getElementById('farmer-signup-phone').value = '';
-      document.getElementById('farmer-signup-aadhaar').value = '';
-      document.getElementById('farmer-signup-alt-name').value = '';
-      document.getElementById('farmer-signup-alt-aadhaar').value = '';
-      document.getElementById('vendor-login-phone').value = '';
+      clearAuthPhoneError();
+      const farmerPhone = document.getElementById('farmer-login-phone');
+      if (farmerPhone) farmerPhone.value = '';
+      const sName = document.getElementById('farmer-signup-name');
+      if (sName) sName.value = '';
+      const sPhone = document.getElementById('farmer-signup-phone');
+      if (sPhone) sPhone.value = '';
+      const sAadhaar = document.getElementById('farmer-signup-aadhaar');
+      if (sAadhaar) sAadhaar.value = '';
+      const sAltName = document.getElementById('farmer-signup-alt-name');
+      if (sAltName) sAltName.value = '';
+      const sAltAadhaar = document.getElementById('farmer-signup-alt-aadhaar');
+      if (sAltAadhaar) sAltAadhaar.value = '';
+      const vPhone = document.getElementById('vendor-login-phone');
+      if (vPhone) vPhone.value = '';
+      const vPass = document.getElementById('vendor-login-password');
+      if (vPass) vPass.value = '';
+      const aId = document.getElementById('admin-login-id');
+      if (aId) aId.value = '';
+      const aPass = document.getElementById('admin-login-password');
+      if (aPass) aPass.value = '';
 
       document.getElementById('auth-modal').classList.remove('hidden');
     }
 
     function closeAuthModal() {
       document.getElementById('auth-modal').classList.add('hidden');
+      clearAuthPhoneError();
     }
 
     function setAuthRole(role) {
       authRole = role;
+      clearAuthPhoneError();
       const farmerBtn = document.getElementById('auth-role-farmer-btn');
       const vendorBtn = document.getElementById('auth-role-vendor-btn');
+      const adminBtn = document.getElementById('auth-role-admin-btn');
       const farmerSec = document.getElementById('auth-farmer-section');
       const vendorSec = document.getElementById('auth-vendor-section');
+      const adminSec = document.getElementById('auth-admin-section');
 
-      if (role === 'farmer') {
-        farmerBtn.className = 'flex-1 py-2 rounded-lg bg-white text-slate-900 shadow-sm transition';
-        vendorBtn.className = 'flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition';
-        farmerSec.classList.remove('hidden');
-        vendorSec.classList.add('hidden');
-      } else {
-        vendorBtn.className = 'flex-1 py-2 rounded-lg bg-white text-slate-900 shadow-sm transition';
-        farmerBtn.className = 'flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition';
-        vendorSec.classList.remove('hidden');
-        farmerSec.classList.add('hidden');
-      }
+      const activeClass = 'flex-1 py-2 rounded-lg bg-white text-slate-900 shadow-sm transition';
+      const inactiveClass = 'flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition';
+
+      if (farmerBtn) farmerBtn.className = (role === 'farmer') ? activeClass : inactiveClass;
+      if (vendorBtn) vendorBtn.className = (role === 'vendor') ? activeClass : inactiveClass;
+      if (adminBtn) adminBtn.className = (role === 'admin') ? activeClass : inactiveClass;
+
+      if (farmerSec) farmerSec.classList.toggle('hidden', role !== 'farmer');
+      if (vendorSec) vendorSec.classList.toggle('hidden', role !== 'vendor');
+      if (adminSec) adminSec.classList.toggle('hidden', role !== 'admin');
     }
 
     function toggleFarmerAuthMode() {
+      clearAuthPhoneError();
       farmerAuthMode = (farmerAuthMode === 'login') ? 'signup' : 'login';
       const loginForm = document.getElementById('farmer-login-form');
       const signupForm = document.getElementById('farmer-signup-form');
@@ -1353,18 +2196,21 @@
 
     async function handleFarmerLogin(e) {
       e.preventDefault();
-      const phone = document.getElementById('farmer-login-phone').value.trim();
+      clearAuthModalError();
+      const raw = document.getElementById('farmer-login-phone').value;
+      const phone = validateIndianPhoneInput(raw);
       if (!phone) return;
 
       try {
+        const payload = { phone, role: 'farmer' };
         const res = await fetch('/api/v1/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone, role: 'farmer' })
+          body: JSON.stringify(payload)
         });
         const data = await res.json();
         if (!res.ok) {
-          showGlobalAlert(data.detail || 'Login failed. If you are new, click Register.', 'error');
+          showAuthModalError(data.detail || 'Login failed. If you are a new farmer, please click "New farmer? Register here".');
           return;
         }
         setSession(data);
@@ -1372,33 +2218,39 @@
         showGlobalAlert(`Welcome back, ${data.full_name}!`, 'success');
         switchView('farmer');
       } catch (err) {
-        showGlobalAlert('Network error during login: ' + err.message, 'error');
+        showAuthModalError('Network error during farmer login: ' + err.message);
       }
     }
 
     async function handleFarmerSignup(e) {
       e.preventDefault();
+      clearAuthModalError();
       const full_name = document.getElementById('farmer-signup-name').value.trim();
-      const phone = document.getElementById('farmer-signup-phone').value.trim();
+      const raw = document.getElementById('farmer-signup-phone').value;
+      const phone = validateIndianPhoneInput(raw);
+      if (!phone) return;
+
       const aadhaar_number = document.getElementById('farmer-signup-aadhaar').value.trim();
       const alt_person_name = document.getElementById('farmer-signup-alt-name').value.trim() || null;
       const alt_person_aadhaar = document.getElementById('farmer-signup-alt-aadhaar').value.trim() || null;
 
       try {
+        const payload = {
+          full_name,
+          phone,
+          aadhaar_number,
+          alt_person_name,
+          alt_person_aadhaar
+        };
+
         const res = await fetch('/api/v1/auth/farmer/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            full_name,
-            phone,
-            aadhaar_number,
-            alt_person_name,
-            alt_person_aadhaar
-          })
+          body: JSON.stringify(payload)
         });
         const data = await res.json();
         if (!res.ok) {
-          showGlobalAlert(data.detail || 'Signup failed. Please verify details.', 'error');
+          showAuthModalError(data.detail || 'Signup failed. Please verify your details.');
           return;
         }
         setSession(data);
@@ -1406,36 +2258,74 @@
         showGlobalAlert(`Registration successful! Welcome, ${data.full_name}.`, 'success');
         switchView('farmer');
       } catch (err) {
-        showGlobalAlert('Network error during registration: ' + err.message, 'error');
+        showAuthModalError('Network error during registration: ' + err.message);
       }
     }
 
     async function handleVendorLogin(e) {
       e.preventDefault();
-      const phone = document.getElementById('vendor-login-phone').value.trim();
+      clearAuthModalError();
+      const raw = document.getElementById('vendor-login-phone').value;
+      const phone = validateIndianPhoneInput(raw);
       if (!phone) return;
 
+      const password = document.getElementById('vendor-login-password').value.trim();
+      if (!password) {
+        showAuthModalError('Please enter your password (registered mobile number).');
+        return;
+      }
+
       try {
+        const payload = { phone, role: 'vendor', password };
+
         const res = await fetch('/api/v1/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone, role: 'vendor' })
+          body: JSON.stringify(payload)
         });
         const data = await res.json();
         if (!res.ok) {
-          showGlobalAlert(data.detail || 'Vendor sign in failed.', 'error');
+          showAuthModalError(data.detail || 'Vendor sign in failed. Please check your registered number.');
           return;
         }
         setSession(data);
         closeAuthModal();
-        showGlobalAlert(`Logged in as ${data.role.toUpperCase()}: ${data.full_name}`, 'success');
-        if (data.role === 'admin') {
-          switchView('admin');
-        } else {
-          switchView('vendor');
-        }
+        showGlobalAlert(`Logged in as Vendor: ${data.full_name}`, 'success');
+        switchView(data.role === 'admin' ? 'admin' : 'vendor');
       } catch (err) {
-        showGlobalAlert('Network error during vendor login: ' + err.message, 'error');
+        showAuthModalError('Network error during vendor login: ' + err.message);
+      }
+    }
+
+    async function handleAdminLogin(e) {
+      e.preventDefault();
+      clearAuthModalError();
+      const adminId = document.getElementById('admin-login-id').value.trim();
+      const password = document.getElementById('admin-login-password').value.trim();
+      if (!adminId || !password) {
+        showAuthModalError('Please enter both Admin ID and Administrator Password.');
+        return;
+      }
+
+      try {
+        const payload = { role: 'admin', admin_id: adminId, password };
+
+        const res = await fetch('/api/v1/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          showAuthModalError(data.detail || 'Invalid admin credentials. Please enter Admin ID (123457890) and Password (123456789).');
+          return;
+        }
+        setSession(data);
+        closeAuthModal();
+        showGlobalAlert(`Logged in as Administrator: ${data.full_name}`, 'success');
+        switchView('admin');
+      } catch (err) {
+        showAuthModalError('Network error during admin login: ' + err.message);
       }
     }
 
@@ -1448,37 +2338,77 @@
     function renderUserSession() {
       const badge = document.getElementById('user-badge');
       const authBtn = document.getElementById('auth-btn-container');
-      const navTabs = document.getElementById('nav-tabs');
+      const bannerFarmer = document.getElementById('context-banner-farmer');
+      const bannerVendor = document.getElementById('context-banner-vendor');
+      const bannerAdmin = document.getElementById('context-banner-admin');
       const tabFarmer = document.getElementById('tab-farmer');
       const tabVendor = document.getElementById('tab-vendor');
       const tabAdmin = document.getElementById('tab-admin');
+      if (tabFarmer) tabFarmer.classList.add('hidden');
+      if (tabVendor) tabVendor.classList.add('hidden');
+      if (tabAdmin) tabAdmin.classList.add('hidden');
+
+      const appSidebar = document.getElementById('app-sidebar');
 
       if (!currentUser) {
-        badge.classList.add('hidden');
-        authBtn.classList.remove('hidden');
-        navTabs.classList.add('hidden');
+        if (badge) badge.classList.add('hidden');
+        if (authBtn) authBtn.classList.remove('hidden');
+        if (bannerFarmer) bannerFarmer.classList.add('hidden');
+        if (bannerVendor) bannerVendor.classList.add('hidden');
+        if (bannerAdmin) bannerAdmin.classList.add('hidden');
+        if (appSidebar) appSidebar.classList.add('hidden');
         return;
       }
 
-      badge.classList.remove('hidden');
-      authBtn.classList.add('hidden');
-      navTabs.classList.remove('hidden');
+      if (badge) badge.classList.remove('hidden');
+      if (authBtn) authBtn.classList.add('hidden');
 
       document.getElementById('user-name-display').textContent = currentUser.full_name || currentUser.phone;
       document.getElementById('user-role-display').textContent = (currentUser.role || 'farmer').toUpperCase();
 
-      if (currentUser.role === 'admin') {
-        tabAdmin.classList.remove('hidden');
-        tabVendor.classList.remove('hidden');
-        tabFarmer.classList.remove('hidden');
-      } else if (currentUser.role === 'vendor') {
-        tabAdmin.classList.add('hidden');
-        tabVendor.classList.remove('hidden');
-        tabFarmer.classList.remove('hidden');
-      } else {
-        tabAdmin.classList.add('hidden');
-        tabVendor.classList.add('hidden');
-        tabFarmer.classList.remove('hidden');
+      if (bannerFarmer) bannerFarmer.classList.add('hidden');
+      if (bannerVendor) bannerVendor.classList.add('hidden');
+      if (bannerAdmin) bannerAdmin.classList.add('hidden');
+
+      // Update and configure persistent left sidebar
+      if (appSidebar) {
+        appSidebar.classList.remove('hidden');
+        const sidebarName = document.getElementById('sidebar-user-name');
+        const sidebarPhone = document.getElementById('sidebar-user-phone');
+        const iconEl = document.getElementById('sidebar-role-icon');
+        const roleBadge = document.getElementById('sidebar-role-badge');
+        const navFarmer = document.getElementById('nav-farmer-group');
+        const navVendor = document.getElementById('nav-vendor-group');
+        const navAdmin = document.getElementById('nav-admin-group');
+
+        if (sidebarName) sidebarName.textContent = currentUser.full_name || currentUser.phone;
+        if (sidebarPhone) sidebarPhone.textContent = currentUser.phone || '';
+
+        if (currentUser.role === 'admin') {
+          if (bannerAdmin) bannerAdmin.classList.remove('hidden');
+          if (iconEl) iconEl.textContent = '🏛️';
+          if (roleBadge) roleBadge.textContent = 'DISTRICT COMMAND';
+          if (navFarmer) navFarmer.classList.add('hidden');
+          if (navVendor) navVendor.classList.add('hidden');
+          if (navAdmin) navAdmin.classList.remove('hidden');
+          switchRoleSubView('admin', currentSubViews.admin || 'dashboard');
+        } else if (currentUser.role === 'vendor') {
+          if (bannerVendor) bannerVendor.classList.remove('hidden');
+          if (iconEl) iconEl.textContent = '⚖️';
+          if (roleBadge) roleBadge.textContent = 'MANDI OPERATOR';
+          if (navFarmer) navFarmer.classList.add('hidden');
+          if (navVendor) navVendor.classList.remove('hidden');
+          if (navAdmin) navAdmin.classList.add('hidden');
+          switchRoleSubView('vendor', currentSubViews.vendor || 'dashboard');
+        } else {
+          if (bannerFarmer) bannerFarmer.classList.remove('hidden');
+          if (iconEl) iconEl.textContent = '🚜';
+          if (roleBadge) roleBadge.textContent = 'FARMER PORTAL';
+          if (navFarmer) navFarmer.classList.remove('hidden');
+          if (navVendor) navVendor.classList.add('hidden');
+          if (navAdmin) navAdmin.classList.add('hidden');
+          switchRoleSubView('farmer', currentSubViews.farmer || 'dashboard');
+        }
       }
     }
 
@@ -1490,7 +2420,144 @@
       switchView('hero');
     }
 
+    // ── ROLE PROFILE RENDERERS ───────────────────────────────────────
+    function renderFarmerProfile() {
+      if (!currentUser) return;
+      const nameEl = document.getElementById('farmer-profile-name');
+      const phoneEl = document.getElementById('farmer-profile-phone');
+      const aadhaarEl = document.getElementById('farmer-profile-aadhaar');
+      const altNameEl = document.getElementById('farmer-profile-alt-name');
+      const altAadhaarEl = document.getElementById('farmer-profile-alt-aadhaar');
+
+      if (nameEl) nameEl.textContent = currentUser.full_name || '--';
+      if (phoneEl) phoneEl.textContent = currentUser.phone || '--';
+      if (aadhaarEl) aadhaarEl.textContent = currentUser.aadhaar_number || 'Aadhaar Verified';
+      if (altNameEl) altNameEl.textContent = currentUser.alt_person_name || 'None registered';
+      if (altAadhaarEl) altAadhaarEl.textContent = currentUser.alt_person_aadhaar || '--';
+    }
+
+    function renderVendorProfile() {
+      if (!currentUser) return;
+      const mandiEl = document.getElementById('vendor-profile-mandi');
+      const idEl = document.getElementById('vendor-profile-id');
+      const locEl = document.getElementById('vendor-profile-location');
+      const addrEl = document.getElementById('vendor-profile-address');
+      const mgrEl = document.getElementById('vendor-profile-manager');
+      const phoneEl = document.getElementById('vendor-profile-phone');
+
+      if (mgrEl) mgrEl.textContent = currentUser.full_name || '--';
+      if (phoneEl) phoneEl.textContent = currentUser.phone || '--';
+
+      const centre = centresList.find(c => c.id === vendorCurrentCentreId || c.id === currentUser.centre_id);
+      if (centre) {
+        if (mandiEl) mandiEl.textContent = centre.name;
+        if (idEl) idEl.textContent = 'MND-' + centre.id;
+        if (locEl) locEl.textContent = `${centre.state || 'Punjab'}, ${centre.city || 'District'}`;
+        if (addrEl) addrEl.textContent = centre.address || 'APMC Grain Market Yard';
+      } else {
+        if (mandiEl) mandiEl.textContent = currentUser.centre_name || 'APMC Mandi Centre';
+        if (idEl) idEl.textContent = currentUser.centre_id ? 'MND-' + currentUser.centre_id : '--';
+        if (locEl) locEl.textContent = 'Punjab, APMC District';
+        if (addrEl) addrEl.textContent = 'APMC Yard';
+      }
+    }
+
     // ── FARMER PORTAL LOGIC ──────────────────────────────────────────
+    const CROPS_CONFIG = [
+      { name: 'Wheat', hindi: 'गेंहू', rate: 2320.0 },
+      { name: 'Paddy', hindi: 'धान', rate: 2300.0 },
+      { name: 'Mustard', hindi: 'सरसों', rate: 5650.0 },
+      { name: 'Gram', hindi: 'चना', rate: 5440.0 },
+      { name: 'Cotton', hindi: 'कपास', rate: 7121.0 },
+      { name: 'Maize', hindi: 'मक्का', rate: 2225.0 },
+    ];
+
+    let bookingCrops = [
+      { crop_name: 'Wheat', estimated_weight_quintals: 20.0, msp_rate: 2320.0 }
+    ];
+
+    function renderBookingCrops() {
+      const container = document.getElementById('booking-crops-list');
+      if (!container) return;
+
+      container.innerHTML = bookingCrops.map((item, idx) => `
+        <div class="flex items-center gap-2 bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm">
+          <div class="flex-1">
+            <select onchange="updateCropSelection(${idx}, 'crop_name', this.value)" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800">
+              ${CROPS_CONFIG.map(c => `
+                <option value="${c.name}" ${item.crop_name === c.name ? 'selected' : ''}>
+                  ${c.name} (${c.hindi}) - ₹${c.rate}/Q
+                </option>
+              `).join('')}
+            </select>
+          </div>
+          <div class="w-24 relative">
+            <input type="number" min="0.5" max="1000" step="0.5" value="${item.estimated_weight_quintals}" oninput="updateCropSelection(${idx}, 'estimated_weight_quintals', parseFloat(this.value) || 0)" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-2 py-1 text-xs font-bold pr-6" />
+            <span class="absolute right-2 top-1 text-[10px] font-bold text-slate-400">Q</span>
+          </div>
+          <div class="w-20 text-right">
+            <span class="text-[11px] font-black text-emerald-700">₹${Math.round(item.estimated_weight_quintals * (item.msp_rate || 2320)).toLocaleString('en-IN')}</span>
+          </div>
+          ${bookingCrops.length > 1 ? `
+            <button type="button" onclick="removeCropRow(${idx})" class="text-rose-500 hover:text-rose-700 font-black text-sm px-1.5 py-0.5 rounded cursor-pointer" title="Remove Crop">✕</button>
+          ` : '<div class="w-5"></div>'}
+        </div>
+      `).join('');
+
+      recalculateBookingCrops();
+    }
+
+    function addCropRow() {
+      const currentNames = bookingCrops.map(c => c.crop_name);
+      const nextCrop = CROPS_CONFIG.find(c => !currentNames.includes(c.name)) || CROPS_CONFIG[0];
+      bookingCrops.push({
+        crop_name: nextCrop.name,
+        estimated_weight_quintals: 10.0,
+        msp_rate: nextCrop.rate
+      });
+      renderBookingCrops();
+    }
+
+    function removeCropRow(index) {
+      if (bookingCrops.length > 1) {
+        bookingCrops.splice(index, 1);
+        renderBookingCrops();
+      }
+    }
+
+    function updateCropSelection(index, field, value) {
+      if (!bookingCrops[index]) return;
+      if (field === 'crop_name') {
+        bookingCrops[index].crop_name = value;
+        const found = CROPS_CONFIG.find(c => c.name === value);
+        if (found) {
+          bookingCrops[index].msp_rate = found.rate;
+        }
+      } else if (field === 'estimated_weight_quintals') {
+        bookingCrops[index].estimated_weight_quintals = value;
+      }
+      renderBookingCrops();
+    }
+
+    function recalculateBookingCrops() {
+      let totalWeight = 0;
+      let totalValue = 0;
+      bookingCrops.forEach(c => {
+        const wt = parseFloat(c.estimated_weight_quintals) || 0;
+        const rate = parseFloat(c.msp_rate) || 2320;
+        totalWeight += wt;
+        totalValue += (wt * rate);
+      });
+
+      const wtDisplay = document.getElementById('booking-total-weight-display');
+      const valDisplay = document.getElementById('booking-total-value-display');
+      const weightInp = document.getElementById('book-weight');
+
+      if (wtDisplay) wtDisplay.textContent = `${totalWeight.toFixed(1)} Q`;
+      if (valDisplay) valDisplay.textContent = `₹ ${Math.round(totalValue).toLocaleString('en-IN')}`;
+      if (weightInp) weightInp.value = totalWeight.toFixed(1);
+    }
+
     async function refreshFarmerData() {
       if (!currentUser) return;
       document.getElementById('farmer-name-heading').textContent = currentUser.full_name || '';
@@ -1502,6 +2569,7 @@
         datePicker.value = today;
       }
 
+      renderBookingCrops();
       await loadCentres();
       await loadFarmerActiveBooking();
       await loadFarmerHistory();
@@ -1630,10 +2698,10 @@
 
       const centre_id = document.getElementById('book-centre').value;
       const slot_id = document.getElementById('book-slot-id').value;
-      const estimated_weight_quintals = parseFloat(document.getElementById('book-weight').value);
-
-      if (!centre_id || !slot_id || !estimated_weight_quintals) {
-        showGlobalAlert('Please fill in all booking fields.', 'error');
+      
+      const totalWeight = bookingCrops.reduce((acc, c) => acc + (parseFloat(c.estimated_weight_quintals) || 0), 0);
+      if (!centre_id || !slot_id || totalWeight <= 0) {
+        showGlobalAlert('Please select a Mandi centre, slot, and enter crop weights.', 'error');
         return;
       }
 
@@ -1642,10 +2710,11 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            farmer_id: currentUser.user_id,
+            farmer_id: currentUser.user_id || currentUser.id,
             centre_id,
             slot_id,
-            estimated_weight_quintals
+            estimated_weight_quintals: totalWeight,
+            crops: bookingCrops
           })
         });
         const data = await res.json();
@@ -1654,8 +2723,15 @@
           return;
         }
 
-        showGlobalAlert(`Mandi slot reserved successfully! Pass Code: ${data.unique_booking_code}`, 'success');
-        document.getElementById('slot-booking-form').reset();
+        const smsNotif = data.sms_status === 'sent' || data.sms_status === 'mock_sent'
+          ? ' SMS confirmation sent to your mobile!'
+          : '';
+        showGlobalAlert(`Mandi slot reserved! Pass Code: ${data.unique_booking_code}.${smsNotif}`, 'success');
+        showBookingSuccessToast(`Pass Code: ${data.unique_booking_code}.${smsNotif}`);
+        
+        // Reset crops to single default row
+        bookingCrops = [{ crop_name: 'Wheat', estimated_weight_quintals: 20.0, msp_rate: 2320.0 }];
+        renderBookingCrops();
         await refreshFarmerData();
       } catch (err) {
         showGlobalAlert('Booking error: ' + err.message, 'error');
@@ -1671,8 +2747,11 @@
       const btnArrival = document.getElementById('btn-confirm-arrival');
       const btnCancel = document.getElementById('btn-cancel-booking');
 
+      const farmerId = currentUser.user_id || currentUser.id;
+      if (!farmerId) return;
+
       try {
-        const res = await fetch(`/api/v1/bookings/farmer/${currentUser.user_id}/active`);
+        const res = await fetch(`/api/v1/bookings/farmer/${farmerId}/active`);
         if (res.status === 404) {
           activeFarmerBooking = null;
           activeCard.classList.add('hidden');
@@ -1688,12 +2767,40 @@
         noActiveCard.classList.add('hidden');
         activeCard.classList.remove('hidden');
 
-        document.getElementById('pass-code').textContent = data.unique_booking_code;
+        document.getElementById('pass-code').textContent = data.unique_booking_code || data.booking_code;
         document.getElementById('pass-mandi-name').textContent = data.centre_name || 'APMC Mandi Yard';
         document.getElementById('pass-date').textContent = data.slot_date;
         document.getElementById('pass-slot').textContent = data.time_window;
         document.getElementById('pass-weight').textContent = data.estimated_weight_quintals;
-        document.getElementById('pass-qr-text').textContent = data.qr_payload || data.unique_booking_code;
+        document.getElementById('pass-qr-text').textContent = data.qr_payload || data.unique_booking_code || data.booking_code;
+
+        // Populate multi-crop list in pass
+        const cropsSummaryEl = document.getElementById('pass-crops-items');
+        if (cropsSummaryEl) {
+          if (data.crops_data && Array.isArray(data.crops_data) && data.crops_data.length > 0) {
+            cropsSummaryEl.textContent = data.crops_data.map(c => `${c.crop_name} (${c.estimated_weight_quintals} Q)`).join(', ');
+          } else {
+            cropsSummaryEl.textContent = `${data.primary_crop || 'Wheat'} (${data.estimated_weight_quintals} Q)`;
+          }
+        }
+
+        // Populate SMS status in pass
+        const smsBadge = document.getElementById('pass-sms-badge');
+        const smsRecip = document.getElementById('pass-sms-recipient');
+        if (smsBadge) {
+          const s = (data.sms_status || 'sent').toUpperCase();
+          smsBadge.textContent = s;
+          if (s === 'SENT' || s === 'MOCK_SENT') {
+            smsBadge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800';
+          } else if (s === 'PENDING') {
+            smsBadge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-100 text-amber-800';
+          } else {
+            smsBadge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-rose-100 text-rose-800';
+          }
+        }
+        if (smsRecip && currentUser) {
+          smsRecip.textContent = `Dispatched to ${currentUser.phone || '--'}`;
+        }
 
         statusBadge.textContent = data.status.toUpperCase();
         statusBadge.className = `badge status-${data.status}`;
@@ -1718,6 +2825,11 @@
           document.getElementById('queue-status-tag').className = 'text-xs font-bold bg-blue-500 text-white px-2.5 py-0.5 rounded-full';
           document.getElementById('queue-eta-display').textContent = 'Not Checked In';
           document.getElementById('queue-eta-subtext').textContent = 'Confirm arrival once you reach the mandi gate.';
+        } else if (data.status === 'arrived') {
+          document.getElementById('queue-status-tag').textContent = 'AT GATE';
+          document.getElementById('queue-status-tag').className = 'text-xs font-bold bg-amber-500 text-white px-2.5 py-0.5 rounded-full';
+          document.getElementById('queue-eta-display').textContent = 'Awaiting Gate Admission';
+          document.getElementById('queue-eta-subtext').textContent = 'Arrival recorded. Mandi operator will admit you into active queue.';
         } else if (data.status === 'completed') {
           document.getElementById('queue-status-tag').textContent = 'COMPLETED';
           document.getElementById('queue-status-tag').className = 'text-xs font-bold bg-emerald-500 text-white px-2.5 py-0.5 rounded-full';
@@ -1727,7 +2839,7 @@
           document.getElementById('queue-status-tag').textContent = 'IN QUEUE';
           document.getElementById('queue-status-tag').className = 'text-xs font-bold bg-amber-400 text-slate-950 px-2.5 py-0.5 rounded-full';
           document.getElementById('queue-eta-display').textContent = (eta !== null ? `${eta} mins` : 'Immediate');
-          document.getElementById('queue-eta-subtext').textContent = `Live ETA calculated for queue position #${p}.`;
+          document.getElementById('queue-eta-subtext').textContent = `Live estimated wait time for queue position #${p}.`;
         }
 
         // Arrival Button Visibility
@@ -1751,6 +2863,15 @@
           document.getElementById('pay-card-amount').textContent = `₹ ${data.transaction.amount_paid.toLocaleString('en-IN')}`;
           document.getElementById('pay-card-mode').textContent = data.transaction.payment_method.toUpperCase();
           document.getElementById('pay-card-utr').textContent = data.transaction.proof_data;
+
+          const receiptWrap = document.getElementById('pay-card-receipt-wrap');
+          const receiptImg = document.getElementById('pay-card-receipt-img');
+          if (data.transaction.proof_image) {
+            if (receiptImg) receiptImg.src = data.transaction.proof_image;
+            if (receiptWrap) receiptWrap.classList.remove('hidden');
+          } else if (receiptWrap) {
+            receiptWrap.classList.add('hidden');
+          }
         } else {
           paymentCard.classList.add('hidden');
         }
@@ -1760,10 +2881,32 @@
       }
     }
 
+    async function handleResendSMS() {
+      if (!activeFarmerBooking) return;
+      const bookingId = activeFarmerBooking.id || activeFarmerBooking.booking_id;
+      try {
+        const res = await fetch(`/api/v1/bookings/${bookingId}/resend-sms`, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+          showGlobalAlert(`SMS confirmation resent to ${data.recipient}! (${data.sms_status})`, 'success');
+          const badge = document.getElementById('pass-sms-badge');
+          if (badge) {
+            badge.textContent = (data.sms_status || 'SENT').toUpperCase();
+            badge.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800';
+          }
+        } else {
+          showGlobalAlert(data.detail || 'Failed to resend SMS.', 'error');
+        }
+      } catch (err) {
+        showGlobalAlert('SMS dispatch error: ' + err.message, 'error');
+      }
+    }
+
     async function handleConfirmArrival() {
       if (!activeFarmerBooking) return;
+      const bookingId = activeFarmerBooking.id || activeFarmerBooking.booking_id;
       try {
-        const res = await fetch(`/api/v1/bookings/${activeFarmerBooking.id}/arrive`, {
+        const res = await fetch(`/api/v1/bookings/${bookingId}/arrive`, {
           method: 'POST'
         });
         const data = await res.json();
@@ -1772,7 +2915,7 @@
           return;
         }
         showGlobalAlert('Arrival confirmed! You have been assigned to the active weighing queue.', 'success');
-        await loadFarmerActiveBooking();
+        await refreshFarmerData();
       } catch (err) {
         showGlobalAlert('Error confirming arrival: ' + err.message, 'error');
       }
@@ -1780,10 +2923,10 @@
 
     async function handleCancelBooking() {
       if (!activeFarmerBooking) return;
-      if (!confirm('Are you sure you want to cancel this booking?')) return;
-
+      if (!confirm('Are you sure you want to cancel your slot reservation?')) return;
+      const bookingId = activeFarmerBooking.id || activeFarmerBooking.booking_id;
       try {
-        const res = await fetch(`/api/v1/bookings/${activeFarmerBooking.id}/cancel`, {
+        const res = await fetch(`/api/v1/bookings/${bookingId}/cancel`, {
           method: 'POST'
         });
         const data = await res.json();
@@ -1801,8 +2944,11 @@
     async function loadFarmerHistory() {
       const tbody = document.getElementById('history-table-body');
       const countEl = document.getElementById('history-count');
+      const farmerId = currentUser.user_id || currentUser.id;
+      if (!farmerId) return;
+
       try {
-        const res = await fetch(`/api/v1/bookings/farmer/${currentUser.user_id}/history`);
+        const res = await fetch(`/api/v1/bookings/farmer/${farmerId}/history`);
         const history = await res.json();
         countEl.textContent = `${history.length} records`;
 
@@ -1813,13 +2959,19 @@
 
         tbody.innerHTML = history.map(b => `
           <tr class="hover:bg-slate-50 transition">
-            <td class="py-3 px-3 font-mono font-bold text-brand-blue">${b.unique_booking_code}</td>
+            <td class="py-3 px-3 font-mono font-bold text-brand-blue">${b.unique_booking_code || b.booking_code}</td>
             <td class="py-3 px-3 font-medium">${b.centre_name || '--'}</td>
             <td class="py-3 px-3">${b.slot_date} (${b.time_window})</td>
             <td class="py-3 px-3 font-bold">${b.estimated_weight_quintals} qtl</td>
             <td class="py-3 px-3"><span class="badge status-${b.status}">${b.status}</span></td>
             <td class="py-3 px-3 text-slate-500">${b.arrived_at ? new Date(b.arrived_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--'}</td>
-            <td class="py-3 px-3 font-semibold text-emerald-700">${b.transaction ? `₹${b.transaction.amount_paid.toLocaleString('en-IN')} (UTR: ${b.transaction.proof_data})` : '--'}</td>
+            <td class="py-3 px-3 font-semibold text-emerald-700">
+              ${b.transaction ? `
+                <div>₹${b.transaction.amount_paid.toLocaleString('en-IN')}</div>
+                <div class="text-[10px] text-slate-500">UTR: ${b.transaction.proof_data}</div>
+                ${b.transaction.proof_image ? `<a href="${b.transaction.proof_image}" target="_blank" class="text-[10px] text-brand-blue underline font-bold">View Receipt</a>` : ''}
+              ` : '--'}
+            </td>
           </tr>
         `).join('');
       } catch (err) {
@@ -1878,6 +3030,10 @@
       await loadVendorSlotsRoster(centreId);
       await loadVendorQueue(centreId);
       await loadVendorTransactions(centreId);
+      await loadVendorTodayKPIs(centreId);
+      await loadProcurementSignals(centreId);
+      await loadScheduleHistory(centreId);
+      await loadCropTrends(centreId);
     }
 
     function adjustWorkers(delta) {
@@ -1954,11 +3110,10 @@
       const tbody = document.getElementById('vendor-roster-body');
       let allBookings = [];
       slots.forEach(s => {
-        if (s.bookings) {
-          s.bookings.forEach(b => {
-            allBookings.push({ ...b, time_window: s.time_window });
-          });
-        }
+        const list = s.bookings || s.farmers || [];
+        list.forEach(b => {
+          allBookings.push({ ...b, time_window: s.time_window });
+        });
       });
 
       if (allBookings.length === 0) {
@@ -1966,22 +3121,33 @@
         return;
       }
 
-      tbody.innerHTML = allBookings.map(b => `
+      tbody.innerHTML = allBookings.map(b => {
+        const code = b.unique_booking_code || b.booking_code;
+        const wt = b.estimated_weight_quintals !== undefined ? b.estimated_weight_quintals : (b.estimated_weight !== undefined ? b.estimated_weight : '--');
+        const canAdmit = (b.status === 'booked' || b.status === 'arrived');
+        const cropsList = (b.crops_data && b.crops_data.length > 0)
+          ? b.crops_data.map(c => `${c.crop_name} (${c.estimated_weight_quintals}Q)`).join(', ')
+          : (b.primary_crop || 'Wheat');
+        return `
         <tr class="hover:bg-slate-50 transition">
-          <td class="py-2.5 px-2 font-mono font-bold text-brand-blue">${b.unique_booking_code}</td>
-          <td class="py-2.5 px-2 font-semibold">${b.farmer_name || 'Farmer'}</td>
+          <td class="py-2.5 px-2 font-mono font-bold text-brand-blue">${code}</td>
+          <td class="py-2.5 px-2 font-semibold">
+            <div>${b.farmer_name || 'Farmer'}</div>
+            <div class="text-[10px] text-slate-500">${cropsList}</div>
+          </td>
           <td class="py-2.5 px-2">${b.farmer_phone || '--'}</td>
-          <td class="py-2.5 px-2 font-bold">${b.estimated_weight_quintals} qtl</td>
+          <td class="py-2.5 px-2 font-bold">${wt} qtl</td>
           <td class="py-2.5 px-2"><span class="badge status-${b.status}">${b.status}</span></td>
           <td class="py-2.5 px-2">
-            ${b.status === 'booked' ? `
-              <button onclick="checkInByCode('${b.unique_booking_code}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] px-2.5 py-1 rounded-lg transition cursor-pointer">
-                Check In Gate
+            ${canAdmit ? `
+              <button onclick="checkInByCode('${code}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] px-2.5 py-1 rounded-lg transition cursor-pointer flex items-center gap-1">
+                <span>✓</span> Admit to Queue
               </button>
-            ` : `<span class="text-slate-400 text-[10px]">Verified</span>`}
+            ` : `<span class="text-slate-400 text-[10px]">${b.status === 'in_queue' ? 'In Active Queue' : 'Verified'}</span>`}
           </td>
         </tr>
-      `).join('');
+      `;
+      }).join('');
     }
 
     async function handleVendorScanCheckin(e) {
@@ -2005,7 +3171,7 @@
           showGlobalAlert(data.detail || 'Check-in failed.', 'error');
           return;
         }
-        showGlobalAlert(`Farmer ${data.farmer_name || ''} checked in! Queue Pos #${data.queue_position}`, 'success');
+        showGlobalAlert(`Farmer ${data.farmer_name || ''} checked in! Queue Pos #${data.position || data.queue_position}`, 'success');
         await refreshVendorData();
       } catch (err) {
         showGlobalAlert('Check-in error: ' + err.message, 'error');
@@ -2026,44 +3192,165 @@
           return;
         }
 
-        container.innerHTML = queue.map((item, idx) => `
+        container.innerHTML = queue.map((item, idx) => {
+          const code = item.unique_booking_code || item.booking_code;
+          const wt = item.estimated_weight_quintals !== undefined ? item.estimated_weight_quintals : (item.estimated_weight !== undefined ? item.estimated_weight : 0);
+          const cropsEncoded = encodeURIComponent(JSON.stringify(item.crops_data || []));
+          const cropsLabel = (item.crops_data && item.crops_data.length > 0)
+            ? item.crops_data.map(c => `${c.crop_name}: ${c.estimated_weight_quintals}Q`).join(' · ')
+            : (item.primary_crop || 'Produce');
+          return `
           <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex items-center justify-between gap-3">
             <div class="flex items-center gap-3">
               <span class="w-7 h-7 rounded-full bg-brand-blue text-white font-black text-xs flex items-center justify-center">${item.position || idx + 1}</span>
               <div>
-                <div class="font-bold text-xs text-slate-900">${item.farmer_name} (${item.unique_booking_code})</div>
-                <div class="text-[10px] text-slate-500">Est: ${item.estimated_weight_quintals} qtl · ETA: ${item.eta_minutes !== null ? item.eta_minutes + ' mins' : 'Paused'}</div>
+                <div class="font-bold text-xs text-slate-900">${item.farmer_name} (${code})</div>
+                <div class="text-[10px] text-slate-500">Est: ${wt} qtl · ETA: ${item.eta_minutes !== null ? item.eta_minutes + ' mins' : 'Paused'}</div>
+                <div class="text-[10px] text-amber-700 font-semibold mt-0.5">🌾 ${cropsLabel}</div>
               </div>
             </div>
-            <button onclick="openWeighModal('${item.booking_id}', '${item.unique_booking_code}', '${item.farmer_name}', ${item.estimated_weight_quintals})" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs px-3 py-1.5 rounded-lg shadow-sm transition flex items-center gap-1 cursor-pointer">
+            <button onclick="openWeighModal('${item.booking_id}', '${code}', '${item.farmer_name}', ${wt}, '${cropsEncoded}')" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs px-3 py-1.5 rounded-lg shadow-sm transition flex items-center gap-1 cursor-pointer">
               <span>⚖️</span> Weigh & Pay
             </button>
           </div>
-        `).join('');
+        `;
+        }).join('');
       } catch (err) {
         console.error('Error loading vendor queue:', err);
       }
     }
 
-    function openWeighModal(bookingId, code, farmerName, estWeight) {
+    let currentWeighProofImageBase64 = null;
+
+    function previewWeighImage(e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) {
+        clearWeighImage();
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        currentWeighProofImageBase64 = evt.target.result;
+        const previewEl = document.getElementById('weigh-image-preview');
+        const previewWrap = document.getElementById('weigh-image-preview-wrap');
+        const nameEl = document.getElementById('weigh-image-name');
+        if (previewEl) previewEl.src = currentWeighProofImageBase64;
+        if (nameEl) nameEl.textContent = file.name;
+        if (previewWrap) previewWrap.classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearWeighImage() {
+      currentWeighProofImageBase64 = null;
+      const fileInput = document.getElementById('weigh-proof-image');
+      if (fileInput) fileInput.value = '';
+      const previewWrap = document.getElementById('weigh-image-preview-wrap');
+      if (previewWrap) previewWrap.classList.add('hidden');
+    }
+
+    let currentWeighCrops = [];
+
+    function openWeighModal(bookingId, code, farmerName, estWeight, cropsEncoded) {
       document.getElementById('weigh-booking-id').value = bookingId;
       document.getElementById('weigh-code-display').textContent = code;
       document.getElementById('weigh-farmer-name').textContent = farmerName;
       document.getElementById('weigh-est-weight').textContent = estWeight;
-      document.getElementById('weigh-actual-weight').value = estWeight;
       document.getElementById('weigh-proof-ref').value = `UTR-PUNB${Math.floor(10000000 + Math.random() * 90000000)}`;
-      calculatePayout();
+      clearWeighImage();
+
+      let parsed = [];
+      try {
+        if (cropsEncoded) parsed = JSON.parse(decodeURIComponent(cropsEncoded));
+      } catch (e) {
+        parsed = [];
+      }
+
+      if (!parsed || parsed.length === 0) {
+        currentWeighCrops = [
+          { crop_name: 'Wheat', estimated_weight_quintals: estWeight, actual_weight_quintals: estWeight, msp_rate: 2320.0 }
+        ];
+      } else {
+        currentWeighCrops = parsed.map(c => {
+          const cfg = CROPS_CONFIG.find(x => x.name === c.crop_name);
+          const rate = c.msp_rate || (cfg ? cfg.rate : 2320.0);
+          const wt = c.estimated_weight_quintals !== undefined ? c.estimated_weight_quintals : estWeight;
+          return {
+            crop_name: c.crop_name,
+            estimated_weight_quintals: wt,
+            actual_weight_quintals: wt,
+            msp_rate: rate
+          };
+        });
+      }
+
+      renderWeighCrops();
+      recalculateWeighPayout();
       document.getElementById('vendor-weigh-modal').classList.remove('hidden');
     }
 
+    function renderWeighCrops() {
+      const container = document.getElementById('weigh-crops-container');
+      if (!container) return;
+      container.innerHTML = currentWeighCrops.map((c, idx) => `
+        <div class="flex items-center justify-between gap-2 p-2 bg-white rounded-lg border border-slate-200">
+          <div class="flex-1">
+            <span class="font-bold text-slate-800 text-xs">${c.crop_name}</span>
+            <div class="text-[10px] text-slate-500">Est: ${c.estimated_weight_quintals} Q · MSP: ₹${c.msp_rate}/Q</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="w-24">
+              <input type="number" step="0.1" min="0.1" value="${c.actual_weight_quintals}" 
+                oninput="updateWeighCropWeight(${idx}, parseFloat(this.value) || 0)"
+                class="w-full bg-slate-50 border border-slate-300 rounded px-2 py-1 text-xs font-bold" />
+            </div>
+            <div class="w-20 text-right font-extrabold text-emerald-700 text-xs">
+              ₹${Math.round(c.actual_weight_quintals * c.msp_rate).toLocaleString('en-IN')}
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateWeighCropWeight(idx, val) {
+      if (currentWeighCrops[idx]) {
+        currentWeighCrops[idx].actual_weight_quintals = val;
+      }
+      recalculateWeighPayout();
+    }
+
+    function recalculateWeighPayout() {
+      let totalWeight = 0;
+      let totalAmount = 0;
+      currentWeighCrops.forEach(c => {
+        const wt = parseFloat(c.actual_weight_quintals) || 0;
+        const rate = parseFloat(c.msp_rate) || 2320;
+        totalWeight += wt;
+        totalAmount += (wt * rate);
+      });
+      const actInp = document.getElementById('weigh-actual-weight');
+      const amtInp = document.getElementById('weigh-total-amount');
+      if (actInp) actInp.value = totalWeight.toFixed(1);
+      if (amtInp) amtInp.value = Math.round(totalAmount);
+    }
+
+    function onOverallWeightChange() {
+      const total = parseFloat(document.getElementById('weigh-actual-weight').value) || 0;
+      if (currentWeighCrops.length === 1) {
+        currentWeighCrops[0].actual_weight_quintals = total;
+        renderWeighCrops();
+      }
+      const rate = parseFloat(document.getElementById('weigh-msp-rate').value) || 2320;
+      document.getElementById('weigh-total-amount').value = Math.round(total * rate);
+    }
+
     function closeWeighModal() {
+      clearWeighImage();
       document.getElementById('vendor-weigh-modal').classList.add('hidden');
     }
 
     function calculatePayout() {
-      const wt = parseFloat(document.getElementById('weigh-actual-weight').value) || 0;
-      const rate = parseFloat(document.getElementById('weigh-msp-rate').value) || 0;
-      document.getElementById('weigh-total-amount').value = Math.round(wt * rate);
+      recalculateWeighPayout();
     }
 
     async function handleRecordPayment(e) {
@@ -2079,6 +3366,13 @@
         return;
       }
 
+      const cropsPayload = currentWeighCrops.map(c => ({
+        crop_name: c.crop_name,
+        actual_weight_quintals: c.actual_weight_quintals,
+        msp_rate: c.msp_rate,
+        amount_paid: Math.round(c.actual_weight_quintals * c.msp_rate)
+      }));
+
       try {
         const res = await fetch('/api/v1/vendor/payment/submit', {
           method: 'POST',
@@ -2087,9 +3381,11 @@
             booking_id,
             actual_weight_quintals,
             amount_paid,
+            crops: cropsPayload,
             payment_method,
             proof_type: 'transaction_id',
-            proof_data
+            proof_data,
+            proof_image: currentWeighProofImageBase64
           })
         });
         const data = await res.json();
@@ -2128,7 +3424,14 @@
             <td class="py-2.5 px-3 font-bold">${t.actual_weight_quintals} qtl</td>
             <td class="py-2.5 px-3 font-extrabold text-emerald-700">₹ ${t.amount_paid.toLocaleString('en-IN')}</td>
             <td class="py-2.5 px-3 uppercase font-bold text-[10px]">${t.payment_method}</td>
-            <td class="py-2.5 px-3 font-mono text-[11px] text-slate-600">${t.proof_data}</td>
+            <td class="py-2.5 px-3 font-mono text-[11px] text-slate-600">
+              <div>${t.proof_data}</div>
+              ${t.proof_image ? `
+                <a href="${t.proof_image}" target="_blank" class="inline-flex items-center gap-1 text-[10px] text-brand-blue font-bold hover:underline mt-0.5">
+                  <span>📷</span> Receipt
+                </a>
+              ` : ''}
+            </td>
           </tr>
         `).join('');
       } catch (err) {
@@ -2136,9 +3439,452 @@
       }
     }
 
+    async function loadVendorTodayKPIs(centreId) {
+      const cId = centreId || vendorCurrentCentreId || (currentUser ? currentUser.centre_id : null);
+      if (!cId) return;
+
+      const dateBadge = document.getElementById('vendor-today-date-badge');
+      if (dateBadge) {
+        dateBadge.textContent = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      }
+
+      try {
+        const res = await fetch(`/api/v1/vendor/${cId}/transactions`);
+        if (!res.ok) return;
+        const txs = await res.json();
+
+        let totalWeight = 0;
+        let totalPayout = 0;
+        let completedFarmers = txs.length;
+
+        // 5 daily 120-min slots: 08-10, 10-12, 12-14, 14-16, 16-18
+        const slotBuckets = [
+          { start: 8, end: 10, payout: 0, weight: 0 },
+          { start: 10, end: 12, payout: 0, weight: 0 },
+          { start: 12, end: 14, payout: 0, weight: 0 },
+          { start: 14, end: 16, payout: 0, weight: 0 },
+          { start: 16, end: 18, payout: 0, weight: 0 }
+        ];
+
+        txs.forEach(t => {
+          const wt = parseFloat(t.actual_weight_quintals) || 0;
+          const amt = parseFloat(t.amount_paid) || 0;
+          totalWeight += wt;
+          totalPayout += amt;
+
+          const d = new Date(t.created_at);
+          const hour = d.getHours();
+          for (let i = 0; i < slotBuckets.length; i++) {
+            if (hour >= slotBuckets[i].start && hour < slotBuckets[i].end) {
+              slotBuckets[i].payout += amt;
+              slotBuckets[i].weight += wt;
+              break;
+            }
+          }
+        });
+
+        const produceEl = document.getElementById('vendor-today-produce');
+        const payoutEl = document.getElementById('vendor-today-payout');
+        const farmersEl = document.getElementById('vendor-today-farmers');
+
+        if (produceEl) produceEl.textContent = `${totalWeight.toFixed(1)} Q`;
+        if (payoutEl) payoutEl.textContent = `₹ ${Math.round(totalPayout).toLocaleString('en-IN')}`;
+        if (farmersEl) farmersEl.textContent = `${completedFarmers}`;
+
+        for (let i = 0; i < 5; i++) {
+          const payEl = document.getElementById(`slot-pay-${i}`);
+          const wtEl = document.getElementById(`slot-wt-${i}`);
+          if (payEl) payEl.textContent = `₹ ${Math.round(slotBuckets[i].payout).toLocaleString('en-IN')}`;
+          if (wtEl) wtEl.textContent = `${slotBuckets[i].weight.toFixed(1)} Q`;
+        }
+      } catch (err) {
+        console.error('Error loading vendor today KPIs:', err);
+      }
+    }
+
+    // ── DAY-WISE & SLOT-WISE SCHEDULE HISTORY ────────────────────────
+    async function loadScheduleHistory(centreId) {
+      const cId = centreId || vendorCurrentCentreId;
+      if (!cId) return;
+
+      const dateInput = document.getElementById('archive-date-input');
+      if (dateInput && !dateInput.value) {
+        dateInput.value = new Date().toISOString().split('T')[0];
+      }
+      const dateVal = dateInput ? dateInput.value : '';
+
+      try {
+        const res = await fetch(`/api/v1/centres/${cId}/schedule/history?date=${dateVal}`);
+        if (!res.ok) {
+          const container = document.getElementById('archive-slots-container');
+          if (container) container.innerHTML = '<div class="py-6 text-center text-xs text-rose-500">Failed to load schedule history.</div>';
+          return;
+        }
+        const data = await res.json();
+        renderScheduleHistory(data);
+      } catch (err) {
+        console.error('Error loading schedule history:', err);
+      }
+    }
+
+    function renderScheduleHistory(data) {
+      const kpi = document.getElementById('archive-kpi-deck');
+      if (kpi) {
+        kpi.innerHTML = `
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <div class="text-[10px] uppercase font-bold text-slate-400">Date</div>
+            <div class="text-sm font-extrabold text-slate-800">${data.date}</div>
+          </div>
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <div class="text-[10px] uppercase font-bold text-slate-400">Slots Active</div>
+            <div class="text-sm font-extrabold text-slate-800">${data.total_slots}</div>
+          </div>
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <div class="text-[10px] uppercase font-bold text-slate-400">Occupancy</div>
+            <div class="text-sm font-extrabold text-brand-blue">${data.total_booked_units} / ${data.total_capacity_units}</div>
+          </div>
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <div class="text-[10px] uppercase font-bold text-slate-400">Admitted / Compl.</div>
+            <div class="text-sm font-extrabold text-amber-700">${data.total_admitted_farmers}</div>
+          </div>
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <div class="text-[10px] uppercase font-bold text-slate-400">Total Produce</div>
+            <div class="text-sm font-extrabold text-slate-900">${data.total_produce_volume_quintals} Q</div>
+          </div>
+          <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-200">
+            <div class="text-[10px] uppercase font-bold text-emerald-600">DBT Settlements</div>
+            <div class="text-sm font-extrabold text-emerald-800">₹${Math.round(data.total_payout_amount).toLocaleString('en-IN')}</div>
+          </div>
+        `;
+      }
+
+      const container = document.getElementById('archive-slots-container');
+      if (!container) return;
+
+      if (!data.slots || data.slots.length === 0) {
+        container.innerHTML = '<div class="py-6 text-center text-xs text-slate-400">No scheduled slots found for this date.</div>';
+        return;
+      }
+
+      container.innerHTML = data.slots.map(s => `
+        <div class="border border-slate-200 rounded-xl overflow-hidden bg-slate-50/50">
+          <div class="bg-slate-100/80 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200">
+            <div class="flex items-center gap-2">
+              <span class="font-black text-xs text-slate-900">⏰ ${s.time_window}</span>
+              <span class="badge ${s.status === 'open' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'} text-[10px]">${s.status}</span>
+            </div>
+            <div class="flex items-center gap-4 text-xs font-semibold text-slate-600">
+              <span>Occupancy: <strong class="text-slate-900">${s.booked_units}/${s.capacity_units}</strong> (${s.occupancy_rate_percent}%)</span>
+              <span>Volume: <strong class="text-slate-900">${s.total_volume_quintals} Q</strong></span>
+              <span>Settled: <strong class="text-emerald-700">₹${Math.round(s.total_payout).toLocaleString('en-IN')}</strong></span>
+            </div>
+          </div>
+          <div class="p-3">
+            ${(!s.farmers || s.farmers.length === 0) ? `
+              <div class="text-[11px] text-slate-400 italic py-1">No farmer bookings in this slot.</div>
+            ` : `
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                  <thead>
+                    <tr class="text-[10px] text-slate-400 uppercase border-b border-slate-200">
+                      <th class="py-1 px-2">Code</th>
+                      <th class="py-1 px-2">Farmer</th>
+                      <th class="py-1 px-2">Crops</th>
+                      <th class="py-1 px-2">Weight</th>
+                      <th class="py-1 px-2">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    ${s.farmers.map(f => `
+                      <tr>
+                        <td class="py-1.5 px-2 font-mono font-bold text-brand-blue">${f.unique_booking_code || f.booking_code}</td>
+                        <td class="py-1.5 px-2 font-semibold">${f.farmer_name} <span class="text-[10px] text-slate-400 font-normal">(${f.farmer_phone})</span></td>
+                        <td class="py-1.5 px-2 text-[11px]">
+                          ${f.crops_data && f.crops_data.length > 0 
+                            ? f.crops_data.map(c => `${c.crop_name} (${c.estimated_weight_quintals}Q)`).join(', ')
+                            : (f.primary_crop || 'Wheat')}
+                        </td>
+                        <td class="py-1.5 px-2 font-bold">${f.estimated_weight_quintals || f.estimated_weight} Q</td>
+                        <td class="py-1.5 px-2"><span class="badge status-${f.status}">${f.status}</span></td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            `}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ── STRATEGIC PROCUREMENT SIGNALS ────────────────────────────────
+    async function loadProcurementSignals(centreId) {
+      const cId = centreId || vendorCurrentCentreId;
+      if (!cId) return;
+
+      const container = document.getElementById('procurement-signals-container');
+      try {
+        const res = await fetch(`/api/v1/analytics/procurement-signals?centre_id=${cId}`);
+        if (!res.ok) {
+          if (container) container.innerHTML = '<div class="col-span-full py-4 text-center text-xs text-rose-500">Failed to load procurement signals.</div>';
+          return;
+        }
+        const data = await res.json();
+        renderProcurementSignals(data);
+      } catch (err) {
+        console.error('Error loading procurement signals:', err);
+      }
+    }
+
+    function renderProcurementSignals(data) {
+      const container = document.getElementById('procurement-signals-container');
+      if (!container) return;
+
+      if (!data.signals || data.signals.length === 0) {
+        container.innerHTML = '<div class="col-span-full py-6 text-center text-xs text-slate-400">No signals available.</div>';
+        return;
+      }
+
+      const urgencyBadges = {
+        HIGH_DEFICIT: { bg: 'bg-rose-100 text-rose-800 border-rose-300', icon: '🚨', label: 'High Deficit' },
+        ON_TRACK: { bg: 'bg-amber-100 text-amber-800 border-amber-300', icon: '⚡', label: 'On Track' },
+        BALANCED: { bg: 'bg-emerald-100 text-emerald-800 border-emerald-300', icon: '✅', label: 'Target Met' },
+        SURPLUS_CEILING: { bg: 'bg-purple-100 text-purple-800 border-purple-300', icon: '📦', label: 'Surplus Ceiling' }
+      };
+
+      container.innerHTML = data.signals.map(s => {
+        const meta = urgencyBadges[s.urgency] || urgencyBadges.BALANCED;
+        const progressPct = Math.min(100, Math.max(0, s.fulfillment_pct));
+        return `
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col justify-between space-y-3 hover:shadow-sm transition">
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <span class="font-black text-sm text-slate-900">${s.crop_name}</span>
+                <span class="badge border ${meta.bg} text-[10px] flex items-center gap-1">
+                  <span>${meta.icon}</span> ${meta.label}
+                </span>
+              </div>
+              <div class="text-[11px] text-slate-500 font-semibold mb-2">MSP: ₹${s.msp_rate}/Q · Target: ${s.daily_target_quintals} Q</div>
+              
+              <div class="space-y-1">
+                <div class="flex justify-between text-[10px] font-bold text-slate-600">
+                  <span>Booked: ${s.booked_quintals} Q (${s.fulfillment_pct}%)</span>
+                  <span>Procured: ${s.procured_quintals} Q</span>
+                </div>
+                <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                  <div class="h-full ${s.urgency === 'HIGH_DEFICIT' ? 'bg-rose-500' : (s.urgency === 'SURPLUS_CEILING' ? 'bg-purple-500' : 'bg-emerald-500')}" style="width: ${progressPct}%"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pt-2 border-t border-slate-200/60 text-[11px] text-slate-600 italic">
+              💡 ${s.recommendation}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ── CROP TREND TRACKER & GRAPHICAL TENURE ANALYSIS ───────────────
+    let currentTrendTimeframe = 'daily';
+    let cropVolumeChartInstance = null;
+    let cropValueChartInstance = null;
+
+    const CROP_CHART_COLORS = {
+      'Wheat': { bar: 'rgba(217, 119, 6, 0.7)', border: '#D97706' },
+      'Paddy': { bar: 'rgba(16, 185, 129, 0.7)', border: '#10B981' },
+      'Mustard': { bar: 'rgba(245, 158, 11, 0.7)', border: '#F59E0B' },
+      'Gram': { bar: 'rgba(234, 88, 12, 0.7)', border: '#EA580C' },
+      'Cotton': { bar: 'rgba(14, 165, 233, 0.7)', border: '#0EA5E9' },
+      'Maize': { bar: 'rgba(99, 102, 241, 0.7)', border: '#6366F1' },
+    };
+
+    function switchTrendTimeframe(tf) {
+      currentTrendTimeframe = tf;
+      ['daily', 'weekly', 'monthly', 'seasonal'].forEach(t => {
+        const btn = document.getElementById(`timeframe-${t}`);
+        if (btn) {
+          if (t === tf) {
+            btn.className = 'px-2.5 py-1 rounded-lg bg-white text-slate-900 shadow-sm transition';
+          } else {
+            btn.className = 'px-2.5 py-1 rounded-lg text-slate-600 hover:text-slate-900 transition';
+          }
+        }
+      });
+      loadCropTrends();
+    }
+
+    async function loadCropTrends(centreId) {
+      const cId = centreId || vendorCurrentCentreId;
+      const cropSelect = document.getElementById('trend-crop-select');
+      const cropVal = cropSelect ? cropSelect.value : '';
+
+      let url = `/api/v1/analytics/crop-trends?timeframe=${currentTrendTimeframe}`;
+      if (cId) url += `&centre_id=${cId}`;
+      if (cropVal) url += `&crop=${encodeURIComponent(cropVal)}`;
+
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+        renderCropTrendKPIs(data);
+        renderCropTrendCharts(data);
+      } catch (err) {
+        console.error('Error loading crop trends:', err);
+      }
+    }
+
+    function renderCropTrendKPIs(data) {
+      const container = document.getElementById('trend-kpi-cards');
+      if (!container) return;
+
+      const summary = data.summary_by_crop || {};
+      const cropKeys = Object.keys(summary);
+      const totalVolume = cropKeys.reduce((acc, k) => acc + (summary[k].total_volume_quintals || 0), 0);
+      const totalValue = cropKeys.reduce((acc, k) => acc + (summary[k].total_estimated_value || 0), 0);
+      const totalArrivals = cropKeys.reduce((acc, k) => acc + (summary[k].total_bookings || 0), 0);
+
+      container.innerHTML = `
+        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <div class="text-[10px] uppercase font-bold text-slate-400">Total Produce Volume</div>
+          <div class="text-sm sm:text-base font-black text-slate-900">${totalVolume.toFixed(1)} Q</div>
+          <div class="text-[10px] text-slate-500 mt-0.5">${data.timeframe} view</div>
+        </div>
+        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <div class="text-[10px] uppercase font-bold text-slate-400">Total Mandi Value</div>
+          <div class="text-sm sm:text-base font-black text-emerald-700">₹ ${Math.round(totalValue).toLocaleString('en-IN')}</div>
+          <div class="text-[10px] text-slate-500 mt-0.5">MSP calculated</div>
+        </div>
+        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <div class="text-[10px] uppercase font-bold text-slate-400">Farmer Arrivals</div>
+          <div class="text-sm sm:text-base font-black text-brand-blue">${totalArrivals} slots</div>
+          <div class="text-[10px] text-slate-500 mt-0.5">Recorded bookings</div>
+        </div>
+        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <div class="text-[10px] uppercase font-bold text-slate-400">Crops Traded</div>
+          <div class="text-sm sm:text-base font-black text-purple-700">${cropKeys.length} Varieties</div>
+          <div class="text-[10px] text-slate-500 mt-0.5">${cropKeys.slice(0, 3).join(', ')}</div>
+        </div>
+      `;
+    }
+
+    function renderCropTrendCharts(data) {
+      if (typeof Chart === 'undefined') return;
+
+      const timeline = data.timeline || [];
+      const periods = [...new Set(timeline.map(p => p.period))];
+      const crops = [...new Set(timeline.map(p => p.crop_name))];
+
+      const labels = periods.length > 0 ? periods : ['No data'];
+
+      // Volume Chart (Stacked Bar)
+      const volumeDatasets = crops.length > 0 ? crops.map(cName => {
+        const color = CROP_CHART_COLORS[cName] || { bar: 'rgba(59, 130, 246, 0.7)', border: '#3B82F6' };
+        return {
+          label: `${cName} (Q)`,
+          data: periods.map(p => {
+            const match = timeline.find(t => t.period === p && t.crop_name === cName);
+            return match ? match.volume_quintals : 0;
+          }),
+          backgroundColor: color.bar,
+          borderColor: color.border,
+          borderWidth: 1.5,
+          borderRadius: 4
+        };
+      }) : [{
+        label: 'Volume (Q)',
+        data: [0],
+        backgroundColor: 'rgba(203, 213, 225, 0.5)'
+      }];
+
+      if (cropVolumeChartInstance) {
+        cropVolumeChartInstance.destroy();
+      }
+      const volCanvas = document.getElementById('cropVolumeChart');
+      if (volCanvas) {
+        cropVolumeChartInstance = new Chart(volCanvas.getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: labels,
+            datasets: volumeDatasets
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: { stacked: true, grid: { display: false } },
+              y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Quintals (Q)' } }
+            },
+            plugins: {
+              legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11, weight: 'bold' } } }
+            }
+          }
+        });
+      }
+
+      // Value Chart (Line Area)
+      const valueDatasets = crops.length > 0 ? crops.map(cName => {
+        const color = CROP_CHART_COLORS[cName] || { bar: 'rgba(59, 130, 246, 0.7)', border: '#3B82F6' };
+        return {
+          label: `${cName} Value (₹)`,
+          data: periods.map(p => {
+            const match = timeline.find(t => t.period === p && t.crop_name === cName);
+            return match ? match.estimated_value : 0;
+          }),
+          borderColor: color.border,
+          backgroundColor: color.bar,
+          fill: true,
+          tension: 0.3,
+          borderWidth: 2
+        };
+      }) : [{
+        label: 'Value (₹)',
+        data: [0],
+        borderColor: '#CBD5E1'
+      }];
+
+      if (cropValueChartInstance) {
+        cropValueChartInstance.destroy();
+      }
+      const valCanvas = document.getElementById('cropValueChart');
+      if (valCanvas) {
+        cropValueChartInstance = new Chart(valCanvas.getContext('2d'), {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: valueDatasets
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              x: { grid: { display: false } },
+              y: {
+                beginAtZero: true,
+                title: { display: true, text: 'Value (₹)' },
+                ticks: {
+                  callback: function(value) {
+                    return '₹' + (value >= 100000 ? (value / 100000).toFixed(1) + 'L' : value.toLocaleString('en-IN'));
+                  }
+                }
+              }
+            },
+            plugins: {
+              legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11, weight: 'bold' } } }
+            }
+          }
+        });
+      }
+    }
+
     // ── ADMIN DISTRICT CONSOLE LOGIC ─────────────────────────────────
     async function refreshAdminData() {
       if (!currentUser || currentUser.role !== 'admin') return;
+      await loadCentres();
+      const mandiKpi = document.getElementById('admin-kpi-mandis');
+      if (mandiKpi && Array.isArray(centresList)) {
+        mandiKpi.textContent = centresList.length;
+      }
       await loadAdminUsers();
       await loadAdminBookings();
     }
@@ -2181,39 +3927,112 @@
       }
     }
 
+    let adminAllUsers = [];
+
     async function loadAdminUsers() {
       const tbody = document.getElementById('admin-users-body');
       const countEl = document.getElementById('admin-user-count');
+      const kpiEl = document.getElementById('admin-kpi-users');
       try {
         const res = await fetch('/api/v1/admin/users');
+        if (!res.ok) {
+          console.error('Failed to load admin users:', res.status);
+          return;
+        }
         const users = await res.json();
-        countEl.textContent = `${users.length} accounts`;
+        if (!Array.isArray(users)) return;
+        adminAllUsers = users;
+        if (countEl) countEl.textContent = `${users.length} accounts`;
+        if (kpiEl) kpiEl.textContent = users.length;
 
-        tbody.innerHTML = users.map(u => `
-          <tr class="hover:bg-slate-50 transition">
-            <td class="py-2 px-3 font-semibold">${u.full_name}</td>
-            <td class="py-2 px-3"><span class="badge ${u.role === 'admin' ? 'bg-amber-100 text-amber-900' : (u.role === 'vendor' ? 'bg-blue-100 text-blue-900' : 'bg-emerald-100 text-emerald-900')}">${u.role}</span></td>
-            <td class="py-2 px-3 font-mono">${u.phone}</td>
-            <td class="py-2 px-3 font-mono">${u.aadhaar_number || '--'}</td>
-            <td class="py-2 px-3">
-              ${u.role !== 'admin' ? `
-                <button onclick="handleDeleteUser('${u.id}')" class="text-rose-600 hover:text-rose-800 font-bold text-[10px] underline cursor-pointer">Delete</button>
-              ` : `<span class="text-slate-400 text-[10px]">Protected</span>`}
-            </td>
-          </tr>
-        `).join('');
+        if (tbody) {
+          if (users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-400">No users found.</td></tr>';
+          } else {
+            tbody.innerHTML = users.map(u => `
+              <tr class="hover:bg-slate-50 transition">
+                <td class="py-2 px-3 font-semibold">${u.full_name}</td>
+                <td class="py-2 px-3"><span class="badge ${u.role === 'admin' ? 'bg-amber-100 text-amber-900' : (u.role === 'vendor' ? 'bg-blue-100 text-blue-900' : 'bg-emerald-100 text-emerald-900')}">${u.role}</span></td>
+                <td class="py-2 px-3 font-mono">${u.phone}</td>
+                <td class="py-2 px-3 font-mono">${u.aadhaar_number || '--'}</td>
+                <td class="py-2 px-3">
+                  ${u.role !== 'admin' ? `
+                    <button onclick="handleDeleteUser('${u.id}')" class="text-rose-600 hover:text-rose-800 font-bold text-[10px] underline cursor-pointer">Delete</button>
+                  ` : `<span class="text-slate-400 text-[10px]">Protected</span>`}
+                </td>
+              </tr>
+            `).join('');
+          }
+        }
+
+        populateAdminDeleteUsersTable(users);
       } catch (err) {
         console.error('Error loading admin users:', err);
       }
     }
 
+    async function renderAdminDeleteView() {
+      if (!adminAllUsers || adminAllUsers.length === 0) {
+        await loadAdminUsers();
+      } else {
+        populateAdminDeleteUsersTable(adminAllUsers);
+      }
+    }
+
+    function filterAdminDeleteUsers() {
+      const q = (document.getElementById('admin-delete-user-search')?.value || '').toLowerCase().trim();
+      if (!adminAllUsers) return;
+      const filtered = adminAllUsers.filter(u => 
+        (u.full_name && u.full_name.toLowerCase().includes(q)) ||
+        (u.phone && u.phone.includes(q)) ||
+        (u.role && u.role.toLowerCase().includes(q))
+      );
+      populateAdminDeleteUsersTable(filtered);
+    }
+
+    function populateAdminDeleteUsersTable(users) {
+      const tbody = document.getElementById('admin-delete-users-body');
+      if (!tbody) return;
+
+      if (!users || users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-400">No matching user accounts found.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = users.map(u => `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="py-2.5 px-3 font-semibold">${u.full_name}</td>
+          <td class="py-2.5 px-3">
+            <span class="badge ${u.role === 'admin' ? 'bg-amber-100 text-amber-900' : (u.role === 'vendor' ? 'bg-blue-100 text-blue-900' : 'bg-emerald-100 text-emerald-900')}">${u.role}</span>
+          </td>
+          <td class="py-2.5 px-3 font-mono">${u.phone}</td>
+          <td class="py-2.5 px-3 font-mono">${u.aadhaar_number || '--'}</td>
+          <td class="py-2.5 px-3">
+            ${u.role !== 'admin' ? `
+              <button onclick="handleDeleteUser('${u.id}')" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg font-bold text-xs transition cursor-pointer">
+                🗑️ Delete
+              </button>
+            ` : `<span class="text-slate-400 text-xs italic">Protected</span>`}
+          </td>
+        </tr>
+      `).join('');
+    }
+
     async function handleDeleteUser(userId) {
+      if (!userId || userId === 'undefined') {
+        showGlobalAlert('Invalid user ID', 'error');
+        return;
+      }
       if (!confirm('Are you sure you want to delete this user?')) return;
       try {
         const res = await fetch(`/api/v1/admin/users/${userId}`, { method: 'DELETE' });
         if (res.ok) {
           showGlobalAlert('User deleted.', 'info');
           await loadAdminUsers();
+          await renderAdminDeleteView();
+        } else {
+          const errData = await res.json();
+          showGlobalAlert(errData.detail || 'Failed to delete user', 'error');
         }
       } catch (err) {
         showGlobalAlert('Error deleting user: ' + err.message, 'error');
@@ -2223,41 +4042,63 @@
     async function loadAdminBookings() {
       const tbody = document.getElementById('admin-bookings-body');
       const countEl = document.getElementById('admin-bookings-count');
+      const kpiEl = document.getElementById('admin-kpi-bookings');
       try {
         const res = await fetch('/api/v1/admin/bookings');
-        const bookings = await res.json();
-        countEl.textContent = `${bookings.length} bookings`;
-
-        if (bookings.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-slate-400">No bookings recorded across district.</td></tr>';
+        if (!res.ok) {
+          console.error('Failed to load admin bookings:', res.status);
           return;
         }
+        const bookings = await res.json();
+        if (!Array.isArray(bookings)) return;
+        if (countEl) countEl.textContent = `${bookings.length} bookings`;
+        if (kpiEl) kpiEl.textContent = bookings.length;
 
-        tbody.innerHTML = bookings.map(b => `
-          <tr class="hover:bg-slate-50 transition">
-            <td class="py-2.5 px-3 font-mono font-bold text-brand-blue">${b.unique_booking_code}</td>
-            <td class="py-2.5 px-3 font-semibold">${b.farmer_name || '--'}</td>
-            <td class="py-2.5 px-3">${b.centre_name || '--'}</td>
-            <td class="py-2.5 px-3">${b.slot_date} (${b.time_window})</td>
-            <td class="py-2.5 px-3 font-bold">${b.estimated_weight_quintals} qtl</td>
-            <td class="py-2.5 px-3"><span class="badge status-${b.status}">${b.status}</span></td>
-            <td class="py-2.5 px-3">
-              <button onclick="handleDeleteBooking('${b.id}')" class="text-rose-600 hover:text-rose-800 font-bold text-[10px] underline cursor-pointer">Delete</button>
-            </td>
-          </tr>
-        `).join('');
+        if (tbody) {
+          if (bookings.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-slate-400">No bookings recorded across district.</td></tr>';
+            return;
+          }
+
+          tbody.innerHTML = bookings.map(b => {
+            const bookingId = b.id || b.booking_id;
+            const code = b.unique_booking_code || b.booking_code;
+            const mandi = b.centre_name || b.mandi_name || '--';
+            const wt = b.estimated_weight_quintals !== undefined ? b.estimated_weight_quintals : (b.estimated_weight !== undefined ? b.estimated_weight : '--');
+            return `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="py-2.5 px-3 font-mono font-bold text-brand-blue">${code}</td>
+              <td class="py-2.5 px-3 font-semibold">${b.farmer_name || '--'}</td>
+              <td class="py-2.5 px-3">${mandi}</td>
+              <td class="py-2.5 px-3">${b.slot_date} (${b.time_window})</td>
+              <td class="py-2.5 px-3 font-bold">${wt} qtl</td>
+              <td class="py-2.5 px-3"><span class="badge status-${b.status}">${b.status}</span></td>
+              <td class="py-2.5 px-3">
+                <button onclick="handleDeleteBooking('${bookingId}')" class="text-rose-600 hover:text-rose-800 font-bold text-[10px] underline cursor-pointer">Delete</button>
+              </td>
+            </tr>
+          `;
+          }).join('');
+        }
       } catch (err) {
         console.error('Error loading admin bookings:', err);
       }
     }
 
     async function handleDeleteBooking(bookingId) {
+      if (!bookingId || bookingId === 'undefined') {
+        showGlobalAlert('Invalid booking ID', 'error');
+        return;
+      }
       if (!confirm('Are you sure you want to delete this booking?')) return;
       try {
         const res = await fetch(`/api/v1/admin/bookings/${bookingId}`, { method: 'DELETE' });
         if (res.ok) {
           showGlobalAlert('Booking removed.', 'info');
           await loadAdminBookings();
+        } else {
+          const errData = await res.json();
+          showGlobalAlert(errData.detail || 'Failed to delete booking', 'error');
         }
       } catch (err) {
         showGlobalAlert('Error deleting booking: ' + err.message, 'error');

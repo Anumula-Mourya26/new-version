@@ -1,4 +1,4 @@
-﻿# Python
+# Python
 __pycache__/
 *.py[cod]
 *.class
@@ -25,7 +25,5 @@ dist/
 Thumbs.db
 .vscode/
 .idea/
-
-# Reference repositories
-ref_kisanqueue/
-
+.env
+ponytail/

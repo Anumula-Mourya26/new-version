@@ -15,7 +15,7 @@ async def test_health_check():
         assert data["app"] == "AnnSetu"
 
 
-def test_smart_queue_eta_formula():
+def test_queue_eta_formula():
     # Case 1: Normal (F=1.0), C=2, N=4
     # ceil(4 * 25 / (2 * 1.0)) = ceil(50.0) = 50
     assert QueueEngine.calculate_eta(n=4, c=2, f=1.0, status="NORMAL") == 50
@@ -37,32 +37,31 @@ def test_smart_queue_eta_formula():
 
 @pytest.mark.anyio
 async def test_auth_and_roles():
-    import time
-    unique_suffix = str(time.time_ns())[-8:]
-    test_phone = f"91{unique_suffix}"
-    test_aadhaar = f"78{unique_suffix}12"
-
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # 1. Pre-existing Admin login via vendor section using phone '123456890'
-        admin_login = await client.post("/api/v1/auth/login", json={"phone": "123456890", "role": "vendor"})
+        # 1. Admin login with Admin ID '123457890' and Password '123456789'
+        admin_login = await client.post("/api/v1/auth/login", json={"role": "admin", "admin_id": "123457890", "password": "123456789"})
         assert admin_login.status_code == 200
         assert admin_login.json()["role"] == "admin"
 
+        # Invalid Admin ID fails
+        bad_admin_id = await client.post("/api/v1/auth/login", json={"role": "admin", "admin_id": "999999999", "password": "123456789"})
+        assert bad_admin_id.status_code == 401
+
         # 2. Farmer Signup with Alternate Person Details
         signup_res = await client.post("/api/v1/auth/farmer/signup", json={
-            "phone": test_phone,
+            "phone": "9812345678",
             "full_name": "Balwinder Singh",
-            "aadhaar_number": test_aadhaar,
+            "aadhaar_number": "789012345678",
             "alt_person_name": "Manjit Kaur",
-            "alt_person_aadhaar": f"89{unique_suffix}34",
+            "alt_person_aadhaar": "890123456789",
         })
         assert signup_res.status_code == 200
         farmer_auth = signup_res.json()
         assert farmer_auth["role"] == "farmer"
 
         # 3. Farmer Login
-        farmer_login = await client.post("/api/v1/auth/login", json={"phone": test_phone, "role": "farmer"})
+        farmer_login = await client.post("/api/v1/auth/login", json={"phone": "9812345678", "role": "farmer"})
         assert farmer_login.status_code == 200
         assert farmer_login.json()["user_id"] == farmer_auth["user_id"]
 
@@ -105,12 +104,19 @@ async def test_farmer_booking_and_arrival_journey():
         booking_code = booking["unique_booking_code"]
         booking_id = booking["id"]
 
-        # 4. Confirm arrival at location
+        # 4. Confirm arrival at location (arrives without auto-queuing)
         arrival_res = await client.post("/api/v1/bookings/arrival-confirm", json={"booking_code": booking_code})
         assert arrival_res.status_code == 200
         arr_data = arrival_res.json()
-        assert arr_data["position"] >= 1
-        assert arr_data["eta_minutes"] is not None
+        assert arr_data["booking_status"] == "arrived"
+        assert arr_data["arrived_at"] is not None
+
+        # 4b. Vendor admits farmer to virtual queue
+        admit_res = await client.post("/api/v1/vendor/scan-checkin", json={"booking_code": booking_code})
+        assert admit_res.status_code == 200
+        admit_data = admit_res.json()
+        assert admit_data["position"] >= 1
+        assert admit_data["eta_minutes"] is not None
 
         # 5. View farmer booking history
         history_res = await client.get("/api/v1/bookings/farmer/farmer-demo-1")
@@ -143,50 +149,38 @@ async def test_vendor_and_admin_workflow():
         assert len(roster) >= 1
         assert roster[0]["capacity_units"] == 30
 
-        # 3. Create fresh booking for test check-in and payment
-        import time
-        t_suffix = str(time.time_ns())[-8:]
-        slots_res = await client.get("/api/v1/centres/centre-khanna/slots")
-        slot_id = slots_res.json()[0]["id"]
-        book = (await client.post("/api/v1/bookings", json={
-            "farmer_id": "farmer-demo-1",
-            "centre_id": "centre-khanna",
-            "slot_id": slot_id,
-            "estimated_weight_quintals": 30.0,
-        })).json()
-
-        # 4. Vendor check-in via QR / code
-        checkin_res = await client.post("/api/v1/vendor/scan-checkin", json={"booking_code": book["unique_booking_code"]})
+        # 3. Vendor check-in via QR / code
+        checkin_res = await client.post("/api/v1/vendor/scan-checkin", json={"booking_code": "AS-1047"})
         assert checkin_res.status_code == 200
-        assert checkin_res.json()["booking_code"] == book["unique_booking_code"]
+        assert checkin_res.json()["booking_code"] == "AS-1047"
 
-        # 5. Vendor records payment with proof upload
+        # 4. Vendor records payment with proof upload
         pay_res = await client.post("/api/v1/vendor/payment/submit", json={
-            "booking_id": book["id"],
-            "actual_weight_quintals": 31.0,
-            "amount_paid": 31.0 * 2320.00,
+            "booking_id": "book-active-1",
+            "actual_weight_quintals": 51.0,
+            "amount_paid": 51.0 * 2320.00,
             "payment_method": "dbt",
             "proof_type": "transaction_id",
-            "proof_data": f"PUNB{t_suffix}",
+            "proof_data": "PUNB9988776655",
         })
         assert pay_res.status_code == 200
         assert pay_res.json()["status"] == "success"
 
-        # 6. Vendor views transactions
+        # 5. Vendor views transactions
         tx_res = await client.get("/api/v1/vendor/centre-khanna/transactions")
         assert tx_res.status_code == 200
         txs = tx_res.json()
         assert len(txs) >= 1
 
-        # 7. Admin onboards new vendor mandi
+        # 6. Admin onboards new vendor mandi
         admin_create_vendor = await client.post("/api/v1/admin/vendors", json={
-            "mandi_name": f"Amritsar Mandi {t_suffix}",
+            "mandi_name": "Amritsar Golden Mandi",
             "state": "Punjab",
             "city": "Amritsar",
             "address": "Near Bypass Mandi Road, Amritsar",
             "manager_name": "Simranjeet Singh",
-            "manager_aadhaar": f"99{t_suffix}11",
-            "manager_phone": f"98{t_suffix}",
+            "manager_aadhaar": "998877665544",
+            "manager_phone": "9876500099",
             "workers_count": 3,
         })
         assert admin_create_vendor.status_code == 200

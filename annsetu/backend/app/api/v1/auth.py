@@ -1,21 +1,29 @@
-﻿from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.core.db import get_db
-from app.core.config import get_settings
 from app.core.security import create_access_token
 from app.models.entities import User
 from app.schemas.schemas import FarmerSignupRequest, LoginRequest, TokenResponse
+from app.services.sms_service import clean_indian_phone, is_valid_indian_phone
 
 router = APIRouter(prefix='/auth', tags=['Authentication'])
-settings = get_settings()
 
 
 @router.post('/farmer/signup', response_model=TokenResponse)
 async def farmer_signup(payload: FarmerSignupRequest, db: AsyncSession = Depends(get_db)):
+    if not is_valid_indian_phone(payload.phone):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid Indian mobile number. Please enter a valid 10-digit number."
+        )
+
+    clean_phone = clean_indian_phone(payload.phone)
+
     # Check if phone already registered
-    existing_phone = (await db.execute(select(User).where(User.phone == payload.phone))).scalar_one_or_none()
+    existing_phone = (await db.execute(select(User).where(User.phone == clean_phone))).scalar_one_or_none()
     if existing_phone:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Phone number already registered. Please log in.')
 
@@ -25,7 +33,7 @@ async def farmer_signup(payload: FarmerSignupRequest, db: AsyncSession = Depends
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Aadhaar number already registered.')
 
     user = User(
-        phone=payload.phone,
+        phone=clean_phone,
         role='farmer',
         full_name=payload.full_name,
         aadhaar_number=payload.aadhaar_number,
@@ -48,15 +56,29 @@ async def farmer_signup(payload: FarmerSignupRequest, db: AsyncSession = Depends
 
 @router.post('/login', response_model=TokenResponse)
 async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
-    clean_phone = payload.phone.strip()
+    role = (payload.role or 'farmer').lower()
 
-    # Pre-existing Admin login check
-    if payload.role == 'vendor' and clean_phone in ['123456890', '1234567890']:
-        # Look up or create the pre-existing admin
-        admin = (await db.execute(select(User).where(User.phone == clean_phone))).scalar_one_or_none()
+    if role == 'admin':
+        # ponytail: hardcoded admin credentials for prototype (Admin ID: 123457890, Password: 123456789); replace with hashed credentials in auth store before production
+        clean_admin_id = (payload.admin_id or payload.phone or '').replace(' ', '').replace('-', '').strip()
+        clean_password = (payload.password or '').strip()
+        if clean_admin_id != '123457890' or clean_password != '123456789':
+            if clean_admin_id != '123457890' and clean_password == '123456789':
+                detail = "Invalid Admin ID. Required Admin ID is 123457890."
+            elif clean_admin_id == '123457890' and clean_password != '123456789':
+                detail = "Invalid Admin Password. Required Admin Password is 123456789."
+            else:
+                detail = "Invalid admin credentials. Required: Admin ID (123457890) and Password (123456789)."
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=detail
+            )
+        admin = (await db.execute(select(User).where(User.role == 'admin'))).scalars().first()
+        if not admin:
+            admin = (await db.execute(select(User).where(User.phone == '123457890'))).scalars().first()
         if not admin:
             admin = User(
-                phone=clean_phone,
+                phone='123457890',
                 role='admin',
                 full_name='District Mandi Administrator',
             )
@@ -73,33 +95,56 @@ async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
             full_name=admin.full_name,
         )
 
-    # General user lookup
-    user = (await db.execute(select(User).where(User.phone == clean_phone))).scalar_one_or_none()
-    if not user:
-        if payload.role == 'vendor':
+    # Phone is required for vendor and farmer
+    if not payload.phone or not is_valid_indian_phone(payload.phone):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid Indian mobile number. Please enter a valid 10-digit number."
+        )
+
+    clean_phone = clean_indian_phone(payload.phone)
+
+    if role == 'vendor':
+        user = (await db.execute(select(User).where(User.phone == clean_phone))).scalar_one_or_none()
+        if not user or user.role not in ['vendor', 'admin']:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail='Vendor not registered. Vendors must be registered by the District Admin.'
             )
-        else:
+
+        # ponytail: phone-as-password for prototype; replace with proper credential setup (e.g. invite link or reset) before production
+        if not payload.password or payload.password.strip() != clean_phone:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail='Invalid credentials. Password must match registered phone number.'
+            )
+
+        token = create_access_token({'sub': user.id, 'role': user.role, 'phone': user.phone})
+        return TokenResponse(
+            access_token=token,
+            role=user.role,
+            user_id=user.id,
+            phone=user.phone,
+            full_name=user.full_name,
+            centre_id=user.centre_id,
+        )
+
+    if role == 'farmer':
+        user = (await db.execute(select(User).where(User.phone == clean_phone))).scalar_one_or_none()
+        if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail='Farmer account not found. Please click Sign Up to register.'
             )
 
-    # Verify role compatibility
-    if payload.role == 'vendor' and user.role not in ['vendor', 'admin']:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail='Access denied. This phone number is not registered as a Mandi Vendor.'
+        token = create_access_token({'sub': user.id, 'role': user.role, 'phone': user.phone})
+        return TokenResponse(
+            access_token=token,
+            role=user.role,
+            user_id=user.id,
+            phone=user.phone,
+            full_name=user.full_name,
+            centre_id=user.centre_id,
         )
 
-    token = create_access_token({'sub': user.id, 'role': user.role, 'phone': user.phone})
-    return TokenResponse(
-        access_token=token,
-        role=user.role,
-        user_id=user.id,
-        phone=user.phone,
-        full_name=user.full_name,
-        centre_id=user.centre_id,
-    )
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Invalid role specified.')

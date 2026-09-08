@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-import re
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+from pydantic import BaseModel, Field, ConfigDict
 
 
 # ── Auth ────────────────────────────────────────────────────────
@@ -12,41 +11,12 @@ class FarmerSignupRequest(BaseModel):
     alt_person_name: Optional[str] = None
     alt_person_aadhaar: Optional[str] = None
 
-    @field_validator('phone')
-    @classmethod
-    def clean_phone(cls, v: str) -> str:
-        clean = re.sub(r'[^0-9+]', '', v.strip())
-        if len(clean.replace('+', '')) < 8:
-            raise ValueError('Phone number must contain at least 8 digits')
-        return clean
-
-    @field_validator('aadhaar_number')
-    @classmethod
-    def clean_aadhaar(cls, v: str) -> str:
-        clean = re.sub(r'[^0-9]', '', v.strip())
-        if len(clean) < 10:
-            raise ValueError('Aadhaar number must contain at least 10-12 digits')
-        return clean
-
-    @field_validator('alt_person_aadhaar')
-    @classmethod
-    def clean_alt_aadhaar(cls, v: Optional[str]) -> Optional[str]:
-        if not v or not str(v).strip():
-            return None
-        clean = re.sub(r'[^0-9]', '', str(v).strip())
-        if len(clean) < 10:
-            raise ValueError('Alternate person Aadhaar must contain at least 10-12 digits')
-        return clean
-
 
 class LoginRequest(BaseModel):
-    phone: str
-    role: str = 'farmer'  # farmer or vendor
-
-    @field_validator('phone')
-    @classmethod
-    def clean_phone(cls, v: str) -> str:
-        return re.sub(r'[^0-9+]', '', v.strip())
+    phone: Optional[str] = None
+    admin_id: Optional[str] = None
+    role: str = 'farmer'  # farmer, vendor, or admin
+    password: Optional[str] = None
 
 
 class TokenResponse(BaseModel):
@@ -90,11 +60,19 @@ class SlotResponse(BaseModel):
 
 
 # ── Farmer Bookings ─────────────────────────────────────────────
+class CropItem(BaseModel):
+    crop_name: str
+    estimated_weight_quintals: float = Field(..., gt=0)
+    msp_rate: Optional[float] = 2320.0
+
+
 class BookingCreateRequest(BaseModel):
     farmer_id: str
     centre_id: str
     slot_id: str
-    estimated_weight_quintals: float = Field(..., gt=0)
+    estimated_weight_quintals: Optional[float] = Field(None, gt=0)
+    crops: Optional[List[CropItem]] = None
+    primary_crop: Optional[str] = 'Wheat'
 
 
 class TransactionBrief(BaseModel):
@@ -104,6 +82,8 @@ class TransactionBrief(BaseModel):
     payment_method: str
     proof_type: str
     proof_data: str
+    proof_image: Optional[str] = None
+    crops_data: Optional[List[Dict[str, Any]]] = None
     status: str
     created_at: datetime
 
@@ -120,11 +100,17 @@ class BookingDetailResponse(BaseModel):
     slot_date: str
     time_window: str
     estimated_weight_quintals: float
+    primary_crop: Optional[str] = 'Wheat'
+    crops_data: Optional[List[Dict[str, Any]]] = None
+    sms_status: Optional[str] = 'pending'
+    sms_error: Optional[str] = None
     status: str
     arrived_at: Optional[datetime] = None
     booked_at: datetime
     queue_position: Optional[int] = None
     eta_minutes: Optional[int] = None
+    workers_count: Optional[int] = None
+    capacity_factor: Optional[float] = None
     transaction: Optional[TransactionBrief] = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -149,17 +135,23 @@ class VendorPaymentSubmitRequest(BaseModel):
     booking_id: str
     actual_weight_quintals: float = Field(..., gt=0)
     amount_paid: float = Field(..., gt=0)
+    crops: Optional[List[Dict[str, Any]]] = None
     payment_method: str = 'dbt'  # dbt, cash
     proof_type: str = 'transaction_id'  # transaction_id, photo_proof
     proof_data: str  # Transaction UTR or receipt reference / image url
+    proof_image: Optional[str] = None  # Base64 data URL / screenshot
 
 
 class FarmerInSlot(BaseModel):
     booking_id: str
     booking_code: str
+    unique_booking_code: str
     farmer_name: str
     farmer_phone: str
     estimated_weight: float
+    estimated_weight_quintals: float
+    primary_crop: Optional[str] = 'Wheat'
+    crops_data: Optional[List[Dict[str, Any]]] = None
     status: str
     arrived_at: Optional[datetime] = None
 
@@ -169,7 +161,24 @@ class SlotRosterResponse(BaseModel):
     time_window: str
     capacity_units: int
     booked_units: int
+    booked_count: int
     farmers: List[FarmerInSlot]
+    bookings: List[FarmerInSlot]
+
+
+class VendorQueueItem(BaseModel):
+    booking_id: str
+    unique_booking_code: str
+    farmer_name: str
+    farmer_phone: str
+    estimated_weight_quintals: float
+    primary_crop: Optional[str] = 'Wheat'
+    crops_data: Optional[List[Dict[str, Any]]] = None
+    position: int
+    eta_minutes: Optional[int] = None
+    status: str
+    arrived_at: Optional[datetime] = None
+
 
 
 # ── Admin Management ────────────────────────────────────────────
@@ -223,4 +232,73 @@ class QueueStatusResponse(BaseModel):
     status: str
     estimated_wait_time_minutes: Optional[int] = None
     queue: List[QueueItem]
+
+
+# ── Historical Schedule & Analytics Schemas ─────────────────────
+class HistoricalSlotRecord(BaseModel):
+    slot_id: str
+    slot_date: str
+    time_window: str
+    capacity_units: int
+    booked_units: int
+    remaining_units: int
+    booked_count: int
+    completed_count: int
+    total_quintals: float
+    total_amount_paid: float
+    bookings: List[FarmerInSlot]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DayScheduleSummary(BaseModel):
+    date: str
+    centre_id: str
+    centre_name: str
+    total_slots: int
+    total_capacity_units: int
+    total_booked_units: int
+    occupancy_rate_pct: float
+    total_farmers_admitted: int
+    total_volume_quintals: float
+    total_payout_amount: float
+    slots: List[HistoricalSlotRecord]
+
+
+class CropTrendPoint(BaseModel):
+    period: str
+    crop_name: str
+    volume_quintals: float
+    booking_count: int
+    msp_rate: float
+    estimated_value: float
+
+
+class CropTrendsResponse(BaseModel):
+    timeframe: str
+    crops_analyzed: List[str]
+    trends: List[CropTrendPoint]
+    summary_by_crop: Dict[str, Dict[str, Any]]
+
+
+class ProcurementSignalItem(BaseModel):
+    crop_name: str
+    daily_target_quintals: float
+    booked_supply_quintals: float
+    procured_quintals: float
+    deficit_or_surplus_quintals: float
+    fulfillment_pct: float
+    urgency_signal: str
+    procurement_recommendation: str
+    current_msp: float
+
+
+class ProcurementSignalsResponse(BaseModel):
+    centre_id: str
+    centre_name: str
+    date: str
+    total_target_quintals: float
+    total_booked_quintals: float
+    signals: List[ProcurementSignalItem]
+
 

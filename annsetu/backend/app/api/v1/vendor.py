@@ -11,6 +11,7 @@ from app.schemas.schemas import (
     SlotRosterResponse, FarmerInSlot, TransactionBrief
 )
 from app.services.queue_engine import QueueEngine
+from app.services.sms_service import SMSService
 from app.ws.queue_ws import manager
 
 router = APIRouter(prefix='/vendor', tags=['Vendor Operations'])
@@ -94,9 +95,13 @@ async def get_slots_roster(centre_id: str, slot_date: str = None, db: AsyncSessi
             FarmerInSlot(
                 booking_id=b.id,
                 booking_code=b.unique_booking_code,
+                unique_booking_code=b.unique_booking_code,
                 farmer_name=u.full_name,
                 farmer_phone=u.phone,
                 estimated_weight=b.estimated_weight_quintals,
+                estimated_weight_quintals=b.estimated_weight_quintals,
+                primary_crop=b.primary_crop or 'Wheat',
+                crops_data=b.crops_data,
                 status=b.status,
                 arrived_at=b.arrived_at,
             )
@@ -108,10 +113,43 @@ async def get_slots_roster(centre_id: str, slot_date: str = None, db: AsyncSessi
             time_window=slot.time_window,
             capacity_units=slot.capacity_units,
             booked_units=len(farmers),
+            booked_count=len(farmers),
             farmers=farmers,
+            bookings=farmers,
         ))
 
     return results
+
+
+@router.get('/{centre_id}/queue')
+async def get_centre_queue(centre_id: str, db: AsyncSession = Depends(get_db)):
+    stmt = (
+        select(QueueState, Booking, User)
+        .join(Booking, Booking.id == QueueState.booking_id)
+        .join(User, User.id == Booking.farmer_id)
+        .where(and_(QueueState.centre_id == centre_id, QueueState.status == 'waiting', Booking.status == 'in_queue'))
+        .order_by(QueueState.position.asc())
+    )
+    rows = (await db.execute(stmt)).all()
+
+    return [
+        {
+            'queue_id': q.id,
+            'booking_id': b.id,
+            'booking_code': b.unique_booking_code,
+            'unique_booking_code': b.unique_booking_code,
+            'farmer_name': u.full_name,
+            'farmer_phone': u.phone,
+            'position': q.position,
+            'eta_minutes': q.eta_minutes,
+            'estimated_weight_quintals': b.estimated_weight_quintals,
+            'primary_crop': b.primary_crop or 'Wheat',
+            'crops_data': b.crops_data,
+            'status': q.status,
+            'arrived_at': b.arrived_at,
+        }
+        for q, b, u in rows
+    ]
 
 
 @router.post('/scan-checkin')
@@ -169,11 +207,28 @@ async def scan_and_checkin(payload: VendorCheckinRequest, db: AsyncSession = Dep
         {'event': 'admitted_to_queue', 'booking_code': booking.unique_booking_code, 'queue': updated_queue}
     )
 
+    farmer = (await db.execute(select(User).where(User.id == booking.farmer_id))).scalar_one_or_none()
+    farmer_name = farmer.full_name if farmer else 'Farmer'
+
+    # Queue Admission SMS notification
+    if farmer and farmer.phone:
+        await SMSService.send_admission_sms(
+            to_phone=farmer.phone,
+            farmer_name=farmer_name,
+            booking_code=booking.unique_booking_code,
+            mandi_name=centre.name,
+            queue_position=q_state.position,
+            eta_minutes=q_state.eta_minutes or 0,
+        )
+
     return {
         'status': 'success',
-        'message': f'Farmer checked in! Assigned Queue Position #{q_state.position}',
+        'message': f'Farmer {farmer_name} checked in! Assigned Queue Position #{q_state.position}',
         'booking_code': booking.unique_booking_code,
+        'unique_booking_code': booking.unique_booking_code,
+        'farmer_name': farmer_name,
         'position': q_state.position,
+        'queue_position': q_state.position,
         'eta_minutes': q_state.eta_minutes,
     }
 
@@ -188,16 +243,19 @@ async def submit_payment(payload: VendorPaymentSubmitRequest, db: AsyncSession =
     if existing_tx:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Payment transaction already recorded for this booking')
 
-    # Record transaction with proof
+    # Record transaction with proof and multi-crop breakdown
+    tx_crops = payload.crops if payload.crops else booking.crops_data
     tx = Transaction(
         booking_id=booking.id,
         centre_id=booking.centre_id,
         farmer_id=booking.farmer_id,
         actual_weight_quintals=payload.actual_weight_quintals,
         amount_paid=payload.amount_paid,
+        crops_data=tx_crops,
         payment_method=payload.payment_method,
         proof_type=payload.proof_type,
         proof_data=payload.proof_data,
+        proof_image=payload.proof_image,
         status='credited',
     )
     db.add(tx)
@@ -231,6 +289,7 @@ async def submit_payment(payload: VendorPaymentSubmitRequest, db: AsyncSession =
         'amount_paid': tx.amount_paid,
         'proof_type': tx.proof_type,
         'proof_data': tx.proof_data,
+        'proof_image': tx.proof_image,
     }
 
 
@@ -256,6 +315,7 @@ async def get_centre_transactions(centre_id: str, db: AsyncSession = Depends(get
             'payment_method': tx.payment_method,
             'proof_type': tx.proof_type,
             'proof_data': tx.proof_data,
+            'proof_image': tx.proof_image,
             'status': tx.status,
             'created_at': tx.created_at,
         }
